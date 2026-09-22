@@ -1,0 +1,32 @@
+# Local secrets
+.env
+.env.*
+!.env.example
+!campus-one-frontend/.env.demo
+
+# Dependencies and build products
+**/node_modules/
+**/dist/
+**/target/
+**/.vite/
+**/*.tsbuildinfo
+
+# Runtime data
+.redis/
+uploads/
+logs/
+*.log
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.iml
+
+# Xcode user state and build output
+**/xcuserdata/
+**/DerivedData/
+**/.build/
+*.xcuserstate
+.gstack/

@@ -1,0 +1,34 @@
+name: CampusOne
+options:
+  bundleIdPrefix: com.campusone
+  deploymentTarget:
+    iOS: "15.0"
+  xcodeVersion: "15.0"
+targets:
+  CampusOne:
+    type: application
+    platform: iOS
+    sources: [CampusOne]
+    info:
+      path: CampusOne/App/Info.plist
+      properties:
+        CFBundleDisplayName: 校园档案
+        UILaunchStoryboardName: ""
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        APIBaseURL: $(API_BASE_URL)
+        UIRequiresFullScreen: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.campusone.app
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_FILE: CampusOne/App/Info.plist
+        TARGETED_DEVICE_FAMILY: "1"
+        SWIFT_VERSION: "5.0"
+        CODE_SIGNING_ALLOWED: NO
+      configs:
+        Debug:
+          API_BASE_URL: "http://127.0.0.1:8080/api/v1"
+        Release:
+          API_BASE_URL: "https://api.example.invalid/api/v1"

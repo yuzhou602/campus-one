@@ -1,0 +1,299 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #2563EB;
+  --color-primary-hover: #1D4ED8;
+  --color-primary-light: #EFF6FF;
+  --color-secondary: #6366F1;
+  --color-success: #16A34A;
+  --color-warning: #D97706;
+  --color-danger: #DC2626;
+  --color-info: #0284C7;
+  --color-bg-page: #F6F8FB;
+  --color-bg-card: #FFFFFF;
+  --color-text-primary: #111827;
+  --color-text-body: #374151;
+  --color-text-secondary: #64748B;
+  --color-border: #E5E7EB;
+  --color-sidebar: #0F172A;
+  --font-family-sans: 'Inter', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+
+  /* —— 设计令牌：校园档案 · 纸张与墨水 —— */
+  --color-paper: #F3EFE7;      /* 页面底：旧纸米黄 */
+  --color-surface: #FCFAF6;    /* 档案卡纸面 */
+  --color-ink-900: #221D18;    /* 主文字 / 标题：浓墨 */
+  --color-ink-700: #4A443C;    /* 悬停态 */
+  --color-ink-500: #6E665C;    /* 次级文字 */
+  --color-ink-300: #A49A8C;    /* 弱化文字 */
+  --color-line: #DDD4C5;       /* 墨线 / 缝线 */
+  --color-stamp: #221D18;      /* 印章墨色（全黑，保持黑白体系） */
+}
+
+/* —— Element Plus 全局墨黑覆写（收敛为「纸张与墨水」体系） —— */
+:root {
+  --el-color-primary: #221D18;
+  --el-color-primary-light-3: #4A443C;
+  --el-color-primary-light-5: #6E665C;
+  --el-color-primary-light-7: #C6BEB0;
+  --el-color-primary-light-8: #DDD5C8;
+  --el-color-primary-light-9: #ECE6DB;
+  --el-color-primary-dark-2: #0E0B08;
+  --el-color-success: #4A443C;
+  --el-color-warning: #4A443C;
+  --el-color-danger: #221D18;
+  --el-color-info: #6E665C;
+  --el-color-error: #221D18;
+  --el-text-color-primary: #221D18;
+  --el-text-color-regular: #4A443C;
+  --el-text-color-secondary: #6E665C;
+  --el-text-color-placeholder: #A49A8C;
+  --el-border-color: #DDD4C5;
+  --el-border-color-light: #E9E2D5;
+  --el-border-color-lighter: #F0EAE0;
+  --el-fill-color-light: #F4EFE5;
+  --el-fill-color-blank: #FCFAF6;
+  --el-bg-color: #FCFAF6;
+  --el-bg-color-page: #F3EFE7;
+  --el-mask-color: rgb(34 29 24 / 0.35);
+  --el-box-shadow: 0 1px 2px rgb(34 29 24 / 0.06), 0 8px 28px rgb(34 29 24 / 0.08);
+  --el-box-shadow-light: 0 1px 2px rgb(34 29 24 / 0.05), 0 6px 20px rgb(34 29 24 / 0.06);
+}
+
+body {
+  font-family: var(--font-family-sans);
+  color: var(--color-ink-900);
+  background-color: var(--color-paper);
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  min-height: 100dvh;
+}
+
+/* 旧纸肌理（全站底色上叠一层极淡的纸纹） */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.05;
+  background-image: radial-gradient(var(--color-ink-900) 0.6px, transparent 0.6px);
+  background-size: 24px 24px;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-ink-300);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ============================================================
+   ====  全局档案设计语言 · 可复用组件（纸张与墨水）  ==========
+   任一页面直接使用 .sheet/.stamp/.arch-head/.arch-sec/.n-rec  ===
+   ============================================================ */
+
+/* 档案卡——卡纸面 */
+.sheet {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgb(34 29 24 / 0.05), 0 6px 20px rgb(34 29 24 / 0.04);
+}
+
+/* 档案页眉——编号 + 题名 + 右上角章号 */
+.arch-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.arch-head .arch-no {
+  font-family: ui-monospace, 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--color-ink-300);
+  padding-bottom: 4px;
+}
+.arch-head .arch-title {
+  font-size: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  color: var(--color-ink-900);
+  margin: 0;
+}
+.arch-head .arch-sub {
+  font-size: 13px;
+  color: var(--color-ink-500);
+  margin-top: 4px;
+}
+.arch-head .arch-mark {
+  margin-left: auto;
+  font-family: ui-monospace, 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--color-ink-300);
+  text-transform: uppercase;
+}
+
+/* 档案节头——小节目录行，带编号与右端墨线 */
+.arch-sec {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  color: var(--color-ink-500);
+  text-transform: uppercase;
+}
+.arch-sec::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--color-ink-300);
+  opacity: 0.6;
+}
+
+/* 墨章——印章（纯黑白，黑墨底白字） */
+.stamp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: #fff;
+  background: var(--color-ink-900);
+  border-radius: 3px;
+  line-height: 1;
+  white-space: nowrap;
+  user-select: none;
+}
+/* 空章——描边版本（弱状态） */
+.stamp.stamp-line {
+  background: transparent;
+  color: var(--color-ink-500);
+  border: 1px solid var(--color-ink-300);
+  font-weight: 500;
+}
+
+/* 登记号——等宽编号 */
+.n-rec {
+  font-family: ui-monospace, 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: var(--color-ink-500);
+}
+
+/* 墨线分隔 */
+.hairline {
+  height: 1px;
+  background: var(--color-ink-300);
+  opacity: 0.6;
+}
+
+/* —— Element 标签收敛为「墨章」质感（去彩色） —— */
+.el-tag {
+  border-radius: 3px;
+  font-weight: 500;
+}
+.el-tag.el-tag--primary,
+.el-tag.el-tag--success,
+.el-tag.el-tag--info,
+.el-tag.el-tag--warning,
+.el-tag.el-tag--danger {
+  --el-tag-bg-color: transparent;
+  --el-tag-border-color: var(--color-ink-300);
+  --el-tag-text-color: var(--color-ink-700);
+}
+
+/* —— Element 主按钮：墨底 —— */
+.el-button--primary {
+  --el-button-bg-color: var(--color-ink-900);
+  --el-button-border-color: var(--color-ink-900);
+  --el-button-text-color: #fff;
+  --el-button-hover-bg-color: var(--color-ink-700);
+  --el-button-hover-border-color: var(--color-ink-700);
+  --el-button-hover-text-color: #fff;
+  --el-button-active-bg-color: var(--color-ink-900);
+  --el-button-active-border-color: var(--color-ink-900);
+}
+
+/* —— Element radio-button（分段导航控件）：纸面墨线 —— */
+.el-radio-button__inner {
+  background: var(--color-surface);
+  border-color: var(--color-line);
+  color: var(--color-ink-500);
+}
+.el-radio-button__original-radio:checked + .el-radio-button__inner,
+.el-radio-button:checked .el-radio-button__inner {
+  background: var(--color-ink-900);
+  border-color: var(--color-ink-900);
+  color: #fff;
+  box-shadow: -1px 0 0 0 var(--color-ink-900);
+}
+
+/* —— Element 输入框：卡纸面 + 墨线聚焦 —— */
+.el-input__wrapper {
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px var(--color-line);
+  transition: box-shadow 0.18s ease-out;
+}
+.el-input__wrapper:hover {
+  box-shadow: inset 0 0 0 1px var(--color-ink-300);
+}
+.el-input__wrapper.is-focus {
+  box-shadow: 0 0 0 3px rgb(34 29 24 / 0.07), inset 0 0 0 1.5px var(--color-ink-900);
+}
+
+/* —— 面包屑 —— */
+.el-breadcrumb__inner {
+  color: var(--color-ink-500);
+  font-weight: 400;
+}
+
+/* —— 无障碍：可见键盘焦点 —— */
+a:focus-visible,
+button:focus-visible,
+[role='button']:focus-visible {
+  outline: 2px solid var(--color-ink-900);
+  outline-offset: 2px;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-ink-500);
+  text-align: center;
+}
+.empty-state strong {
+  color: var(--color-ink-900);
+  font-size: 0.95rem;
+}
+.empty-state span {
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,4041 @@
+# CampusOne 智慧校园综合服务平台
+
+## 完整产品设计、技术架构、前端 UI 与 AI 实现规范
+
+---
+
+# 0. AI 开发总指令
+
+你现在同时扮演：
+
+* 资深产品经理
+* 校园数字化解决方案架构师
+* Java 后端架构师
+* Vue3 前端架构师
+* UI / UX 设计师
+* 数据库架构师
+* AI Agent 工程师
+* 软件测试工程师
+* DevOps 工程师
+
+现在需要你从 0 到 1 完整设计并实现：
+
+# CampusOne —— AI 驱动的智慧校园综合服务平台
+
+项目定位：
+
+> 面向高校学生、教师、辅导员、行政人员和校园服务人员的一站式数字校园服务平台。
+
+本项目用于：
+
+* 计算机专业毕业设计
+* 高质量个人项目
+* 求职作品集
+* 全栈技术能力展示
+* AI Agent 应用能力展示
+
+禁止将系统实现为传统：
+
+```text
+学生管理
+教师管理
+课程管理
+成绩管理
+```
+
+这种简单 CRUD 后台。
+
+系统核心不是“学校基础信息管理”，而是：
+
+> 让校园中的服务、事务、审批、预约、报修、活动、通知和 AI 助手形成统一数字化平台。
+
+项目必须体现：
+
+1. 多角色体系
+2. RBAC 权限
+3. 校园服务门户
+4. 事务审批工作流
+5. 场地预约
+6. 并发预约控制
+7. 校园报修
+8. 服务工单
+9. 校园活动
+10. 消息通知
+11. 任务中心
+12. 文件上传
+13. 操作日志
+14. 数据可视化
+15. AI Campus Agent
+16. Tool Calling
+17. RAG 校园知识库
+18. SSE 流式输出
+19. 完整前后端工程化
+20. Docker 部署
+
+必须形成真实、完整、可演示的校园业务闭环。
+
+---
+
+# 1. 项目基本信息
+
+中文名称：
+
+**CampusOne 智慧校园综合服务平台**
+
+英文名称：
+
+**CampusOne Smart Campus Platform**
+
+项目副标题：
+
+**AI-Powered One-Stop Campus Service Platform**
+
+毕业设计题目可以使用：
+
+> 基于 Spring Boot、Vue3 与 Spring AI 的智慧校园综合服务平台设计与实现
+
+或者：
+
+> 基于 AI Agent 的高校一站式智慧校园服务平台设计与实现
+
+---
+
+# 2. 项目核心定位
+
+CampusOne 不定位为传统教务系统。
+
+重点解决校园中大量分散的问题：
+
+* 学生不知道事务在哪里办理
+* 各类申请入口分散
+* 审批进度无法追踪
+* 教室、会议室、实验室预约不透明
+* 校园报修处理效率低
+* 校园通知容易遗漏
+* 活动信息分散
+* 大量校园规章需要人工查询
+* 学生频繁咨询重复问题
+* 教师和行政人员缺少统一工作台
+
+系统最终形成：
+
+```text
+校园服务
++
+事务审批
++
+资源预约
++
+校园报修
++
+校园活动
++
+统一消息
++
+数据分析
++
+AI Campus Agent
+```
+
+---
+
+# 3. 技术栈
+
+## 3.1 前端
+
+必须使用：
+
+```text
+Vue 3
+TypeScript
+Composition API
+Vite
+Vue Router
+Pinia
+Element Plus
+Tailwind CSS
+Axios
+ECharts
+VueUse
+Day.js
+Lucide Icons / Iconify
+```
+
+推荐：
+
+```text
+@vueuse/core
+vue-i18n（可选）
+nprogress
+markdown-it
+highlight.js
+```
+
+禁止：
+
+* Vue2
+* jQuery
+* 大量 any
+* 一个 Vue 页面数千行
+* 全局复制粘贴 CSS
+* 页面完全依赖 Element Plus 默认样式
+
+---
+
+# 4. 后端技术
+
+必须使用：
+
+```text
+Java 17 或 Java 21
+Spring Boot 3.x
+Spring MVC
+Spring Security
+JWT
+MyBatis Plus
+MySQL 8
+Redis
+Spring Validation
+Springdoc OpenAPI
+Lombok
+MapStruct
+Maven
+```
+
+推荐增加：
+
+```text
+Redisson
+RabbitMQ
+MinIO
+Flowable
+XXL-JOB
+```
+
+其中：
+
+## Flowable
+
+负责：
+
+* 请假审批
+* 场地特殊预约审批
+* 证明申请
+* 活动审批
+* 其他校园事务审批
+
+## Redis
+
+负责：
+
+* 登录状态
+* 权限缓存
+* 验证码
+* 防重复提交
+* 预约并发控制
+* 热点缓存
+* Dashboard 缓存
+
+## RabbitMQ
+
+负责：
+
+* 消息通知
+* 工单状态事件
+* 审批事件
+* 预约成功事件
+* AI 异步事件扩展
+
+---
+
+# 5. AI 技术
+
+必须使用：
+
+```text
+Spring AI
+LLM API
+Tool Calling
+Function Calling
+SSE
+RAG
+Vector Database
+```
+
+向量数据库可选择：
+
+```text
+PGVector
+Milvus
+Elasticsearch Vector
+Redis Vector
+```
+
+AI 不得只实现：
+
+> 用户问一句，直接把问题转发给大模型。
+
+AI 必须能够访问真实业务系统。
+
+---
+
+# 6. 用户角色
+
+至少包含：
+
+## 6.1 学生
+
+可以：
+
+* 查看校园首页
+* 查看个人日程
+* 提交请假
+* 发起事务申请
+* 预约校园资源
+* 提交报修
+* 查看活动
+* 报名活动
+* 查看通知
+* 使用 AI 校园助手
+* 查看自己的服务记录
+
+---
+
+## 6.2 教师
+
+可以：
+
+* 查看课程安排
+* 查看校园资源
+* 预约会议室 / 实验室
+* 查看学生审批
+* 发起事务申请
+* 查看通知
+* 使用 AI 助手
+
+---
+
+## 6.3 辅导员
+
+可以：
+
+* 审批学生请假
+* 查看学生申请
+* 发布班级通知
+* 查看学生事务统计
+* 查看待办
+
+---
+
+## 6.4 服务人员
+
+例如：
+
+* 水电维修
+* 网络维修
+* 宿舍维修
+
+可以：
+
+* 查看分配工单
+* 接单
+* 更新维修状态
+* 上传维修结果
+* 完成工单
+
+---
+
+## 6.5 行政人员
+
+可以：
+
+* 管理场地
+* 管理活动
+* 管理校园服务
+* 审核申请
+* 发布通知
+* 查看运营数据
+
+---
+
+## 6.6 系统管理员
+
+负责：
+
+* 用户
+* 角色
+* 权限
+* 菜单
+* 系统字典
+* 日志
+* AI 配置
+* 系统配置
+
+---
+
+# 7. 系统整体功能架构
+
+系统一级模块：
+
+```text
+CampusOne
+│
+├── 智慧首页
+│
+├── 校园事务
+│   ├── 请假申请
+│   ├── 证明申请
+│   ├── 事务申请
+│   └── 我的申请
+│
+├── 审批中心
+│
+├── 场地预约
+│
+├── 校园报修
+│
+├── 校园活动
+│
+├── 校园资讯
+│
+├── 校园服务
+│
+├── 任务中心
+│
+├── 消息中心
+│
+├── AI 校园助手
+│
+├── 数据中心
+│
+└── 系统管理
+```
+
+不要把所有功能同时塞到首页。
+
+---
+
+# 8. 产品核心设计思想
+
+整个产品围绕：
+
+# 「今天我在学校需要处理什么？」
+
+而不是：
+
+# 「系统里有哪些数据库表？」
+
+因此首页需要围绕：
+
+* 今日课程
+* 我的待办
+* 我的申请
+* 我的预约
+* 校园通知
+* 校园活动
+* AI 助手
+
+进行组织。
+
+---
+
+# 9. 智慧校园首页
+
+学生首页定位：
+
+# 我的校园工作台
+
+推荐布局：
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│ CampusOne            搜索      AI助手     消息       用户     │
+├───────────┬──────────────────────────────────────────────────┤
+│           │ 上午好，张同学                                   │
+│ 智慧首页   │ 今天是 9月5日 · 星期六                           │
+│           │                                                  │
+│ 校园事务   │ ┌──────────────────────┐ ┌───────────────────┐ │
+│           │ │ 今日课程              │ │ 我的待办           │ │
+│ 审批中心   │ │                      │ │                   │ │
+│           │ │ 08:00 软件工程        │ │ 请假审批：处理中   │ │
+│ 场地预约   │ │ 10:00 Java EE       │ │ 实验室预约：通过   │ │
+│           │ │ 14:00 数据库原理      │ │ 报修工单：处理中   │ │
+│ 校园报修   │ └──────────────────────┘ └───────────────────┘ │
+│           │                                                  │
+│ 校园活动   │ 快捷服务                                        │
+│           │                                                  │
+│ 消息中心   │ [请假] [报修] [教室预约] [证明申请] [活动报名]  │
+│           │                                                  │
+│ AI助手     │ ┌──────────────────────┐ ┌───────────────────┐ │
+│           │ │ 校园通知              │ │ 推荐活动           │ │
+│ 数据中心   │ └──────────────────────┘ └───────────────────┘ │
+└───────────┴──────────────────────────────────────────────────┘
+```
+
+---
+
+# 10. 首页设计要求
+
+首页必须遵循：
+
+## 第一优先级
+
+今天必须处理的信息。
+
+## 第二优先级
+
+今天会发生的事情。
+
+## 第三优先级
+
+用户可能需要的校园服务。
+
+不要显示：
+
+* 用户总数
+* 教师总数
+* 学院数量
+* 专业数量
+
+这类对学生没有意义的数据。
+
+---
+
+# 11. 校园事务中心
+
+设计统一：
+
+# 校园办事大厅
+
+提供：
+
+```text
+请假申请
+学生证明申请
+场地特殊使用申请
+活动场地申请
+物品借用申请
+宿舍事务申请
+其他事务
+```
+
+服务卡片：
+
+```text
+请假申请
+
+适用对象：
+学生
+
+预计办理时间：
+1 个工作日
+
+审批流程：
+班主任 → 辅导员
+
+[立即办理]
+```
+
+---
+
+# 12. 我的申请
+
+页面状态：
+
+```text
+全部
+审批中
+已通过
+已驳回
+已撤回
+```
+
+表格：
+
+```text
+申请编号
+事项名称
+申请时间
+当前节点
+审批状态
+最近更新时间
+操作
+```
+
+点击进入详情。
+
+---
+
+# 13. 申请详情设计
+
+顶部：
+
+```text
+请假申请
+AP202609050001
+
+状态：审批中
+```
+
+基本信息：
+
+```text
+申请人
+学号
+学院
+班级
+请假类型
+开始时间
+结束时间
+请假原因
+附件
+```
+
+右侧：
+
+# 审批进度
+
+```text
+提交申请
+✓
+
+班主任审批
+✓ 已通过
+
+辅导员审批
+● 处理中
+
+完成
+○
+```
+
+下方：
+
+```text
+审批记录
+```
+
+展示：
+
+```text
+王老师
+2026-09-05 10:30
+
+审批通过
+
+意见：
+情况属实，同意请假。
+```
+
+---
+
+# 14. 请假审批业务
+
+基础流程：
+
+```text
+学生提交
+↓
+班主任审批
+↓
+辅导员审批
+↓
+完成
+```
+
+如果请假小于 1 天：
+
+```text
+学生
+↓
+班主任
+↓
+完成
+```
+
+如果：
+
+```text
+请假 > 3 天
+```
+
+可以设计：
+
+```text
+学生
+↓
+班主任
+↓
+辅导员
+↓
+学院负责人
+↓
+完成
+```
+
+审批流程必须支持条件分支。
+
+建议使用 Flowable。
+
+---
+
+# 15. 审批状态
+
+统一状态：
+
+```text
+DRAFT
+SUBMITTED
+PROCESSING
+APPROVED
+REJECTED
+WITHDRAWN
+CANCELLED
+```
+
+禁止直接修改 status。
+
+必须通过：
+
+```text
+submit()
+approve()
+reject()
+withdraw()
+```
+
+进行状态变化。
+
+---
+
+# 16. 审批中心
+
+管理员、教师、辅导员看到：
+
+```text
+待我审批
+我已审批
+我发起的
+抄送我的
+```
+
+待办卡片：
+
+```text
+请假申请
+
+张三
+计算机科学与技术 2301
+
+请假：
+9月6日 - 9月8日
+
+原因：
+参加竞赛
+
+[查看详情]
+```
+
+详情页可以：
+
+```text
+通过
+驳回
+转交
+```
+
+---
+
+# 17. 场地预约系统
+
+这是整个项目的重要技术模块。
+
+场地包括：
+
+```text
+教室
+自习室
+会议室
+实验室
+篮球场
+羽毛球馆
+琴房
+报告厅
+创新实验室
+```
+
+---
+
+# 18. 场地搜索页面
+
+顶部：
+
+```text
+场地预约
+
+找到适合你的校园空间
+```
+
+筛选：
+
+```text
+日期
+时间段
+场地类型
+校区
+教学楼
+容纳人数
+设备
+```
+
+场地卡片：
+
+```text
+软件实验室 305
+
+信息楼 · 3F
+
+容纳人数：
+45
+
+设备：
+电脑 ×45
+投影仪
+空调
+
+今日可预约：
+14:00-16:00
+18:00-20:00
+
+[查看时间表]
+```
+
+---
+
+# 19. 预约时间表
+
+使用 Timeline / Calendar。
+
+例如：
+
+```text
+08:00 ─ 已占用
+09:00 ─ 已占用
+10:00 ─ 可预约
+11:00 ─ 可预约
+12:00 ─ 不开放
+13:00 ─ 可预约
+14:00 ─ 可预约
+15:00 ─ 已占用
+```
+
+或者使用：
+
+```text
+Weekly Schedule Grid
+```
+
+---
+
+# 20. 创建预约
+
+流程：
+
+```text
+选择场地
+↓
+选择日期
+↓
+选择时间
+↓
+填写用途
+↓
+检查冲突
+↓
+创建预约
+↓
+成功
+```
+
+需要检查：
+
+```text
+用户时间冲突
+场地时间冲突
+场地开放时间
+场地权限
+预约人数
+预约时长
+预约次数限制
+```
+
+---
+
+# 21. 预约并发控制
+
+这是项目技术亮点之一。
+
+场景：
+
+两个用户同时预约：
+
+```text
+实验室 305
+9月8日
+14:00-16:00
+```
+
+只能有一个成功。
+
+必须处理：
+
+```text
+并发请求
++
+数据库事务
++
+Redis 分布式锁
+```
+
+推荐：
+
+```text
+Redisson Lock
+
+resource:
+campus:reservation:{roomId}:{date}:{slot}
+```
+
+同时数据库增加唯一约束。
+
+不能只依赖前端按钮 disabled。
+
+---
+
+# 22. 预约状态
+
+```text
+PENDING
+CONFIRMED
+IN_USE
+COMPLETED
+CANCELLED
+EXPIRED
+REJECTED
+```
+
+特殊场地可以：
+
+```text
+PENDING
+↓
+管理员审批
+↓
+CONFIRMED
+```
+
+普通自习室则：
+
+```text
+直接 CONFIRMED
+```
+
+---
+
+# 23. 校园报修系统
+
+报修类型：
+
+```text
+宿舍维修
+教室设备
+水电维修
+网络故障
+空调维修
+门窗维修
+公共设施
+其他
+```
+
+---
+
+# 24. 报修流程
+
+```text
+用户提交报修
+↓
+AI / 系统分类
+↓
+生成工单
+↓
+指派维修人员
+↓
+维修人员接单
+↓
+处理中
+↓
+维修完成
+↓
+用户确认
+↓
+用户评价
+↓
+工单关闭
+```
+
+---
+
+# 25. 提交报修页面
+
+表单：
+
+```text
+报修位置
+故障类型
+故障描述
+上传图片
+是否影响正常使用
+联系方式
+可维修时间
+```
+
+支持图片上传。
+
+文件使用：
+
+```text
+MinIO
+```
+
+不要直接把 Base64 存数据库。
+
+---
+
+# 26. 报修工单状态
+
+```text
+SUBMITTED
+ASSIGNED
+ACCEPTED
+PROCESSING
+WAITING_PART
+RESOLVED
+CONFIRMED
+CLOSED
+CANCELLED
+```
+
+---
+
+# 27. 报修详情
+
+顶部：
+
+```text
+RP202609050008
+
+宿舍空调维修
+
+状态：
+处理中
+```
+
+左侧：
+
+```text
+故障描述
+图片
+位置
+联系人
+提交时间
+```
+
+右侧：
+
+```text
+维修人员
+
+李师傅
+
+电话：
+***********
+```
+
+下方：
+
+# 工单时间线
+
+```text
+09:20 用户提交
+09:23 系统分类为空调故障
+09:25 分配暖通维修组
+09:37 李师傅接单
+10:02 到达现场
+10:15 处理中
+```
+
+---
+
+# 28. AI 报修分类
+
+用户输入：
+
+```text
+宿舍空调不制冷，而且一直滴水。
+```
+
+AI 可以分析：
+
+```text
+故障类型：
+空调维修
+
+紧急程度：
+中等
+
+可能原因：
+冷凝排水管堵塞
+制冷剂不足
+过滤网堵塞
+
+推荐服务组：
+暖通维修组
+```
+
+但 AI 不能直接决定危险性较高的维修处理。
+
+AI 主要用于：
+
+* 分类
+* 信息提取
+* 服务组推荐
+* 文本总结
+
+---
+
+# 29. 校园活动
+
+功能：
+
+```text
+活动浏览
+活动搜索
+活动报名
+我的活动
+活动签到
+活动收藏
+活动管理
+```
+
+活动分类：
+
+```text
+学术
+竞赛
+讲座
+社团
+体育
+志愿服务
+就业
+创新创业
+```
+
+---
+
+# 30. 活动详情
+
+布局：
+
+```text
+活动封面
+
+AI 与未来软件开发讲座
+
+9月12日
+14:00
+
+大学生活动中心
+
+已报名：
+186 / 200
+
+主办方：
+计算机学院
+
+[立即报名]
+```
+
+下面：
+
+```text
+活动介绍
+活动时间
+活动地点
+报名要求
+主办方
+注意事项
+```
+
+---
+
+# 31. 活动报名并发
+
+活动人数：
+
+```text
+capacity = 200
+```
+
+第 201 人不能成功。
+
+同样需要：
+
+```text
+Redis
++
+数据库约束
++
+事务
+```
+
+---
+
+# 32. 校园通知
+
+通知类型：
+
+```text
+学校通知
+学院通知
+班级通知
+活动通知
+系统通知
+审批通知
+预约通知
+报修通知
+```
+
+支持：
+
+```text
+全校
+学院
+专业
+班级
+指定用户
+```
+
+---
+
+# 33. 消息中心
+
+Header：
+
+```text
+🔔 8
+```
+
+消息中心：
+
+```text
+全部
+审批
+预约
+报修
+活动
+系统
+```
+
+消息包含：
+
+```text
+标题
+摘要
+类型
+关联业务
+是否已读
+时间
+```
+
+点击后跳转对应业务详情。
+
+---
+
+# 34. 校园任务中心
+
+统一管理：
+
+```text
+待审批
+待签到
+待确认
+待处理工单
+待完成预约
+```
+
+角色不同展示不同任务。
+
+学生：
+
+```text
+我的待办
+```
+
+管理员：
+
+```text
+业务待办
+```
+
+维修人员：
+
+```text
+维修任务
+```
+
+---
+
+# 35. 校园知识库
+
+知识来源：
+
+```text
+学生手册
+校园规章
+奖学金政策
+请假规定
+实验室规定
+住宿管理规定
+场地预约规定
+学校办事指南
+常见问题
+```
+
+管理员可以上传：
+
+```text
+PDF
+DOCX
+TXT
+Markdown
+```
+
+系统完成：
+
+```text
+解析
+↓
+分块
+↓
+Embedding
+↓
+Vector Store
+```
+
+提供 RAG。
+
+---
+
+# 36. AI Campus Agent
+
+系统核心亮点：
+
+# Campus Copilot
+
+不是普通聊天机器人。
+
+AI 页面：
+
+```text
+┌────────────────────────────────────────────┐
+│ Campus Copilot                             │
+│ 你的 AI 校园生活与事务助手                  │
+│                                            │
+│ [查课表] [找教室] [查申请] [校园规定]       │
+│ [场地预约] [报修进度] [校园活动]            │
+│                                            │
+│ AI 对话                                    │
+│                                            │
+│                                            │
+│ 输入你想了解或办理的校园事务……              │
+└────────────────────────────────────────────┘
+```
+
+---
+
+# 37. AI Agent 能力
+
+Agent 至少具备：
+
+```text
+查询个人课程
+查询校园日程
+查询空闲场地
+查询预约
+查询申请进度
+查询报修工单
+查询校园活动
+查询校园通知
+查询校园规章
+```
+
+可以进一步支持经过确认的业务操作：
+
+```text
+创建预约
+提交报修
+活动报名
+```
+
+---
+
+# 38. Agent Tools
+
+后端至少提供：
+
+```text
+getStudentSchedule()
+
+getTodaySchedule()
+
+searchAvailableRooms()
+
+getRoomSchedule()
+
+getMyReservations()
+
+getApplicationStatus()
+
+getRepairOrderStatus()
+
+searchCampusEvents()
+
+getMyEvents()
+
+searchCampusNotice()
+
+searchCampusKnowledge()
+
+createRoomReservation()
+
+createRepairRequest()
+
+registerEvent()
+```
+
+所有 Tool 必须通过：
+
+```text
+当前用户身份
++
+权限校验
++
+后端 Service
+```
+
+访问真实业务数据。
+
+---
+
+# 39. AI 场景一：查空闲实验室
+
+用户：
+
+```text
+明天下午 3 点还有哪些实验室空闲？
+```
+
+Agent：
+
+```text
+获取当前日期
+↓
+查询实验室
+↓
+查询课程占用
+↓
+查询预约记录
+↓
+过滤开放时间
+```
+
+回答：
+
+```text
+明天下午 15:00 可使用的实验室有 3 间：
+
+1. 软件实验室 305
+   信息楼 3F
+   容量：45
+   14:00-16:00 可预约
+
+2. AI 实验室 402
+   信息楼 4F
+   容量：30
+   15:00-17:00 可预约
+```
+
+---
+
+# 40. AI 场景二：查询校园事务
+
+用户：
+
+```text
+申请三天病假需要谁审批？
+```
+
+系统优先：
+
+```text
+RAG 检索请假制度
+```
+
+回答：
+
+```text
+根据当前学生请假管理规定：
+
+3 天病假需要依次经过：
+
+班主任
+↓
+辅导员
+↓
+学院负责人
+
+申请时需要填写请假时间、原因，并上传相关证明材料。
+```
+
+必须展示资料来源。
+
+---
+
+# 41. AI 场景三：查询个人信息
+
+用户：
+
+```text
+我的请假申请现在到哪里了？
+```
+
+Agent：
+
+```text
+getApplicationStatus()
+```
+
+返回：
+
+```text
+申请编号：
+AP202609040021
+
+状态：
+审批中
+
+当前节点：
+辅导员审批
+
+班主任：
+已通过
+
+提交时间：
+9月4日 21:17
+```
+
+---
+
+# 42. AI 场景四：办理事务
+
+用户：
+
+```text
+帮我预约明天下午 3 点的软件实验室 305。
+```
+
+Agent：
+
+```text
+获取当前用户
+↓
+检查场地
+↓
+检查时间
+↓
+检查冲突
+↓
+生成待确认动作
+```
+
+AI 必须先向前端返回：
+
+```text
+即将预约：
+
+软件实验室 305
+
+时间：
+9月6日 15:00-16:00
+
+用途：
+自主学习
+
+确认预约？
+```
+
+用户明确确认后才能执行：
+
+```text
+createRoomReservation()
+```
+
+涉及写操作时禁止 AI 自动无确认执行。
+
+---
+
+# 43. 前端整体视觉定位
+
+视觉方向：
+
+# Modern Campus SaaS + Clean Academic Technology
+
+关键词：
+
+```text
+现代
+年轻
+专业
+清晰
+轻科技
+校园感
+高质量 SaaS
+```
+
+不是：
+
+```text
+学校官网
+政务后台
+传统教务系统
+模板商城后台
+```
+
+---
+
+# 44. 前端视觉原则
+
+前端要求：
+
+1. 使用大量合理留白
+2. 页面结构清晰
+3. 强调内容层级
+4. 图表数量克制
+5. 卡片数量克制
+6. 状态颜色统一
+7. 圆角保持适度
+8. 动效轻量
+9. 使用高质量线性图标
+10. 避免过度二次元化
+11. 避免巨大渐变
+12. 避免玻璃拟态滥用
+
+校园系统允许比传统 ERP 更年轻，但不能像娱乐 App。
+
+---
+
+# 45. Design System
+
+## 主色
+
+```text
+#2563EB
+```
+
+主色 Hover：
+
+```text
+#1D4ED8
+```
+
+---
+
+## 辅助科技色
+
+可以少量使用：
+
+```text
+#6366F1
+```
+
+仅用于：
+
+* AI
+* 特殊强调
+* 部分图表
+
+---
+
+## 页面背景
+
+```text
+#F6F8FB
+```
+
+---
+
+## 卡片
+
+```text
+#FFFFFF
+```
+
+---
+
+## 主文字
+
+```text
+#111827
+```
+
+---
+
+## 正文
+
+```text
+#374151
+```
+
+---
+
+## 辅助文字
+
+```text
+#64748B
+```
+
+---
+
+## 边框
+
+```text
+#E5E7EB
+```
+
+---
+
+## Success
+
+```text
+#16A34A
+```
+
+## Warning
+
+```text
+#D97706
+```
+
+## Danger
+
+```text
+#DC2626
+```
+
+## Info
+
+```text
+#0284C7
+```
+
+---
+
+# 46. 字体
+
+推荐：
+
+```text
+Inter
+PingFang SC
+Microsoft YaHei
+system-ui
+```
+
+字号：
+
+```text
+页面标题
+24px / 600
+
+Section
+18px / 600
+
+Card Title
+16px / 600
+
+Body
+14px / 400
+
+Secondary
+13px
+
+Caption
+12px
+```
+
+---
+
+# 47. 间距
+
+使用：
+
+```text
+4
+8
+12
+16
+20
+24
+32
+40
+```
+
+页面：
+
+```text
+padding: 24px
+```
+
+卡片：
+
+```text
+padding: 20px / 24px
+```
+
+页面模块：
+
+```text
+gap: 20-24px
+```
+
+---
+
+# 48. 圆角
+
+按钮：
+
+```text
+8px
+```
+
+输入框：
+
+```text
+8px
+```
+
+卡片：
+
+```text
+10-12px
+```
+
+Modal：
+
+```text
+12px
+```
+
+不要大面积 24px 以上圆角。
+
+---
+
+# 49. 阴影
+
+普通卡片优先：
+
+```text
+border
+```
+
+而不是强阴影。
+
+Hover：
+
+可以增加非常轻的阴影。
+
+Dialog / Drawer：
+
+使用柔和中等阴影。
+
+---
+
+# 50. 系统整体布局
+
+桌面端：
+
+```text
+Sidebar：240px
+
+Collapsed Sidebar：64px
+
+Header：64px
+
+Content：
+剩余区域
+```
+
+Sidebar 建议使用：
+
+```text
+深色或白色均可
+```
+
+如果采用深色：
+
+```text
+#0F172A
+```
+
+但内容区域必须保持明亮。
+
+---
+
+# 51. 左侧导航
+
+推荐：
+
+```text
+CampusOne
+智慧校园
+
+────────────
+
+智慧首页
+
+校园服务
+    校园事务
+    场地预约
+    校园报修
+
+校园生活
+    校园活动
+    校园资讯
+
+个人中心
+    我的申请
+    我的预约
+    我的报修
+    我的活动
+
+智能服务
+    AI 校园助手
+    消息中心
+
+管理
+    审批中心
+    数据中心
+    系统管理
+```
+
+菜单根据权限动态显示。
+
+学生不应该看到管理员全部菜单。
+
+---
+
+# 52. 顶部 Header
+
+左侧：
+
+```text
+Breadcrumb
+```
+
+中间可提供：
+
+```text
+全局搜索
+```
+
+搜索：
+
+```text
+搜索服务、活动、通知、场地……
+```
+
+右侧：
+
+```text
+快速办理
+AI 助手
+消息
+用户
+```
+
+快速办理：
+
+```text
+请假
+场地预约
+校园报修
+证明申请
+```
+
+---
+
+# 53. 首页欢迎区域
+
+不要设计巨大 Banner。
+
+设计轻量：
+
+```text
+下午好，张同学 👋
+
+今天有 3 节课程和 2 个待办事项。
+```
+
+旁边可以：
+
+```text
+9月5日
+星期六
+
+23°C
+```
+
+天气可作为后续扩展，不应成为系统重点。
+
+---
+
+# 54. 快捷服务
+
+首页可使用：
+
+```text
+请假申请
+校园报修
+场地预约
+证明申请
+活动报名
+校园通知
+```
+
+使用：
+
+```text
+Icon
++
+Title
++
+Short Description
+```
+
+不要使用巨大彩色卡片。
+
+---
+
+# 55. 表格页面规范
+
+表格顶部统一：
+
+```text
+PageHeader
+
+SearchToolbar
+
+Filter
+```
+
+表格：
+
+```text
+Empty State
+Loading
+Pagination
+```
+
+操作列：
+
+```text
+查看
+更多 ...
+```
+
+避免：
+
+```text
+查看 编辑 删除 审核 打印 下载
+```
+
+全部横着排列。
+
+---
+
+# 56. Detail Drawer
+
+适合：
+
+```text
+活动快速查看
+预约详情
+通知详情
+用户信息
+```
+
+宽度：
+
+```text
+520-680px
+```
+
+复杂流程仍使用独立详情页。
+
+---
+
+# 57. Dialog
+
+适合：
+
+```text
+确认
+取消
+简单编辑
+驳回
+```
+
+不要把复杂表单塞进 600px 小弹窗。
+
+---
+
+# 58. 动效
+
+按钮：
+
+```text
+150ms
+```
+
+Card Hover：
+
+```text
+180ms
+```
+
+Drawer：
+
+```text
+200-250ms
+```
+
+页面：
+
+```text
+轻微 Fade
+```
+
+禁止：
+
+* 页面飞入
+* 旋转
+* 复杂缩放
+* 大量粒子
+* 过度发光
+
+---
+
+# 59. 响应式
+
+主要支持：
+
+```text
+1440px
+1920px
+```
+
+同时保证：
+
+```text
+1280px
+```
+
+可正常使用。
+
+低于：
+
+```text
+1200px
+```
+
+Sidebar 折叠。
+
+移动端不要求完整后台操作体验，但：
+
+```text
+AI 助手
+通知
+简单查询
+```
+
+需要基本可用。
+
+---
+
+# 60. 前端工程结构
+
+```text
+src
+│
+├── api
+│   ├── auth
+│   ├── application
+│   ├── approval
+│   ├── reservation
+│   ├── repair
+│   ├── activity
+│   ├── notice
+│   ├── dashboard
+│   └── ai
+│
+├── assets
+├── components
+│   ├── common
+│   ├── business
+│   ├── form
+│   └── charts
+│
+├── composables
+├── directives
+├── layouts
+├── router
+├── stores
+├── styles
+├── types
+├── utils
+└── views
+    ├── dashboard
+    ├── service
+    ├── approval
+    ├── reservation
+    ├── repair
+    ├── activity
+    ├── notice
+    ├── task
+    ├── ai
+    ├── analytics
+    └── system
+```
+
+---
+
+# 61. 通用组件
+
+必须封装：
+
+```text
+PageHeader
+
+SearchToolbar
+
+StatusTag
+
+MetricCard
+
+ServiceCard
+
+ApplicationTimeline
+
+ApprovalTimeline
+
+ReservationCalendar
+
+RoomCard
+
+RepairTimeline
+
+ActivityCard
+
+NotificationItem
+
+DetailDrawer
+
+UserAvatar
+
+EmptyState
+
+SmartTable
+
+FileUploader
+
+ImageUploader
+
+AiMessage
+
+AiToolCallCard
+
+SourceReference
+```
+
+---
+
+# 62. 后端工程结构
+
+采用领域划分：
+
+```text
+campus-one
+│
+├── common
+│   ├── response
+│   ├── exception
+│   ├── enums
+│   └── utils
+│
+├── security
+│
+├── system
+│   ├── user
+│   ├── role
+│   └── permission
+│
+├── student
+│
+├── teacher
+│
+├── academic
+│
+├── application
+│
+├── approval
+│
+├── reservation
+│
+├── repair
+│
+├── activity
+│
+├── notice
+│
+├── task
+│
+├── file
+│
+├── analytics
+│
+├── knowledge
+│
+└── ai
+```
+
+每个领域：
+
+```text
+controller
+service
+service.impl
+mapper
+entity
+dto
+vo
+converter
+```
+
+---
+
+# 63. 数据库核心表
+
+系统：
+
+```text
+sys_user
+sys_role
+sys_permission
+sys_user_role
+sys_role_permission
+sys_menu
+sys_operation_log
+sys_notification
+```
+
+校园组织：
+
+```text
+campus_college
+campus_major
+campus_class
+campus_student
+campus_teacher
+campus_building
+```
+
+课程：
+
+```text
+academic_course
+academic_course_schedule
+```
+
+事务：
+
+```text
+campus_service
+service_application
+application_attachment
+application_approval_record
+```
+
+预约：
+
+```text
+campus_resource
+resource_opening_rule
+resource_reservation
+resource_reservation_participant
+```
+
+报修：
+
+```text
+repair_order
+repair_order_image
+repair_assignment
+repair_record
+repair_evaluation
+```
+
+活动：
+
+```text
+campus_activity
+activity_registration
+activity_checkin
+```
+
+通知：
+
+```text
+campus_notice
+notice_target
+notice_read_record
+```
+
+知识库：
+
+```text
+knowledge_document
+knowledge_chunk
+```
+
+AI：
+
+```text
+ai_conversation
+ai_message
+ai_tool_call
+```
+
+---
+
+# 64. 预约核心表
+
+## campus_resource
+
+```text
+id
+resource_code
+resource_name
+resource_type
+building_id
+room_number
+capacity
+description
+equipment_json
+status
+need_approval
+created_at
+updated_at
+```
+
+---
+
+## resource_reservation
+
+```text
+id
+
+reservation_no
+
+resource_id
+
+user_id
+
+reservation_date
+
+start_time
+
+end_time
+
+purpose
+
+participant_count
+
+status
+
+approval_instance_id
+
+version
+
+created_at
+
+updated_at
+```
+
+索引至少：
+
+```text
+resource_id
+reservation_date
+status
+```
+
+预约重叠判断必须在后端处理。
+
+---
+
+# 65. 报修核心表
+
+```text
+repair_order
+
+id
+repair_no
+user_id
+location
+category
+description
+priority
+status
+assigned_user_id
+contact
+available_time
+created_at
+accepted_at
+resolved_at
+closed_at
+```
+
+---
+
+# 66. 事务申请表
+
+```text
+service_application
+
+id
+application_no
+service_id
+applicant_id
+form_data_json
+status
+process_instance_id
+current_node
+submitted_at
+completed_at
+created_at
+updated_at
+```
+
+不同事务的动态字段可以使用：
+
+```text
+form_data_json
+```
+
+但关键查询字段应单独设计。
+
+不要所有业务数据全部 JSON 化。
+
+---
+
+# 67. RBAC
+
+采用：
+
+```text
+User
+↓
+Role
+↓
+Permission
+```
+
+权限例子：
+
+```text
+reservation:view
+reservation:create
+reservation:approve
+reservation:cancel
+
+repair:create
+repair:assign
+repair:accept
+repair:process
+
+application:create
+application:approve
+
+activity:create
+activity:approve
+activity:register
+
+notice:create
+notice:publish
+
+ai:use
+```
+
+前端：
+
+```text
+v-permission
+```
+
+后端：
+
+```text
+@PreAuthorize
+```
+
+必须前后端双重校验。
+
+---
+
+# 68. 数据权限
+
+RBAC 之外增加数据范围：
+
+```text
+ALL
+COLLEGE
+CLASS
+SELF
+CUSTOM
+```
+
+例如：
+
+辅导员：
+
+```text
+只能查看自己负责班级学生。
+```
+
+学院管理员：
+
+```text
+只能查看本学院。
+```
+
+这是重要的企业级项目亮点。
+
+---
+
+# 69. 统一 API
+
+统一前缀：
+
+```text
+/api/v1
+```
+
+例如：
+
+```text
+GET /api/v1/dashboard/student
+
+GET /api/v1/resources
+
+GET /api/v1/resources/{id}/availability
+
+POST /api/v1/reservations
+
+DELETE /api/v1/reservations/{id}
+
+POST /api/v1/repairs
+
+POST /api/v1/repairs/{id}/accept
+
+POST /api/v1/applications
+
+POST /api/v1/approvals/{taskId}/approve
+
+POST /api/v1/approvals/{taskId}/reject
+```
+
+---
+
+# 70. 统一响应
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {},
+  "timestamp": 1788600000000
+}
+```
+
+分页：
+
+```json
+{
+  "records": [],
+  "total": 100,
+  "page": 1,
+  "pageSize": 20
+}
+```
+
+---
+
+# 71. 统一异常
+
+定义：
+
+```text
+BusinessException
+
+ReservationConflictException
+
+ResourceUnavailableException
+
+ApprovalStateException
+
+RepairStateException
+
+ActivityFullException
+
+PermissionDeniedException
+
+DuplicateSubmitException
+```
+
+统一：
+
+```text
+@RestControllerAdvice
+```
+
+---
+
+# 72. 防重复提交
+
+重要接口：
+
+```text
+预约
+活动报名
+审批
+报修
+```
+
+必须防止用户连续点击。
+
+可以采用：
+
+```text
+Redis Token
++
+Request Id
++
+业务唯一约束
+```
+
+---
+
+# 73. Redis
+
+合理使用：
+
+```text
+登录状态
+
+用户权限
+
+验证码
+
+分布式锁
+
+预约并发锁
+
+活动报名锁
+
+热点校园通知
+
+热门活动
+
+Dashboard
+
+防重复提交
+```
+
+不要为了技术栈丰富而把所有数据库查询缓存。
+
+---
+
+# 74. RabbitMQ
+
+事件：
+
+```text
+ReservationCreatedEvent
+
+ApplicationApprovedEvent
+
+RepairAssignedEvent
+
+RepairCompletedEvent
+
+ActivityRegisteredEvent
+```
+
+消费者：
+
+```text
+NotificationConsumer
+
+AnalyticsConsumer
+
+AuditConsumer
+```
+
+例如：
+
+```text
+请假审批通过
+↓
+发送事件
+↓
+通知学生
+```
+
+业务主流程与通知系统解耦。
+
+---
+
+# 75. MinIO
+
+用于：
+
+```text
+报修图片
+
+活动封面
+
+申请附件
+
+证明材料
+
+知识库文档
+```
+
+数据库只保存：
+
+```text
+object_key
+url
+metadata
+```
+
+---
+
+# 76. 操作日志
+
+记录高风险操作：
+
+```text
+审批通过
+
+审批驳回
+
+删除活动
+
+取消预约
+
+修改角色
+
+发布通知
+
+分配工单
+
+修改场地开放时间
+```
+
+日志字段：
+
+```text
+用户
+模块
+操作
+目标
+请求方式
+IP
+结果
+时间
+```
+
+---
+
+# 77. Dashboard
+
+学生：
+
+```text
+今日课程
+待办
+我的预约
+最新通知
+推荐活动
+快捷服务
+```
+
+教师：
+
+```text
+今日课程
+待审批
+会议预约
+通知
+```
+
+维修人员：
+
+```text
+待接单
+处理中
+今日完成
+紧急工单
+```
+
+管理员：
+
+```text
+今日申请
+审批效率
+场地利用率
+报修数量
+活动报名
+平台访问
+```
+
+不同角色 Dashboard 必须不同。
+
+---
+
+# 78. 数据分析中心
+
+管理人员页面：
+
+## 场地分析
+
+```text
+场地利用率
+热门场地
+预约时段分布
+取消率
+```
+
+## 报修分析
+
+```text
+报修趋势
+故障类型
+平均响应时间
+平均解决时间
+维修人员工作量
+```
+
+## 事务分析
+
+```text
+申请数量
+审批平均时长
+驳回率
+事务类型分布
+```
+
+## 活动分析
+
+```text
+报名人数
+活动类型
+参与度
+签到率
+```
+
+禁止纯堆图表。
+
+每张图都必须回答一个明确业务问题。
+
+---
+
+# 79. 状态机
+
+所有复杂业务禁止随意修改状态。
+
+例如报修：
+
+```text
+SUBMITTED
+↓
+ASSIGNED
+↓
+ACCEPTED
+↓
+PROCESSING
+↓
+RESOLVED
+↓
+CONFIRMED
+↓
+CLOSED
+```
+
+例如预约：
+
+```text
+PENDING
+↓
+CONFIRMED
+↓
+IN_USE
+↓
+COMPLETED
+```
+
+取消：
+
+```text
+CANCELLED
+```
+
+只能通过合法 Service 方法改变状态。
+
+---
+
+# 80. 编号生成器
+
+统一：
+
+```text
+AP202609050001
+RS202609050001
+RP202609050001
+AC202609050001
+```
+
+分别代表：
+
+```text
+Application
+Reservation
+Repair
+Activity
+```
+
+创建：
+
+```text
+BusinessNumberGenerator
+```
+
+---
+
+# 81. Mock / 初始化数据
+
+必须提供高质量演示数据。
+
+至少：
+
+```text
+3 个学院
+8 个专业
+15 个班级
+
+50 个学生
+15 个教师
+
+5 栋教学楼
+20 个教室
+8 个实验室
+5 个会议室
+
+20 条预约
+20 个事务申请
+20 个报修工单
+10 个校园活动
+20 条通知
+```
+
+不要全部：
+
+```text
+张三
+李四
+测试数据1
+测试数据2
+```
+
+数据应真实自然。
+
+---
+
+# 82. 系统初始化账号
+
+提供：
+
+```text
+管理员
+学生
+教师
+辅导员
+维修人员
+```
+
+演示账号。
+
+README 明确写明。
+
+---
+
+# 83. 测试
+
+必须至少实现：
+
+## 单元测试
+
+```text
+预约冲突
+
+预约时间合法性
+
+活动人数限制
+
+报修状态转换
+
+审批状态转换
+
+权限检查
+
+AI Tool Service
+```
+
+---
+
+# 84. 并发测试
+
+重点测试：
+
+```text
+100 个请求同时抢最后一个预约时段
+```
+
+必须：
+
+```text
+只有一个成功
+```
+
+以及：
+
+```text
+活动仅剩 1 个名额
+```
+
+多人同时报名时：
+
+```text
+只能 1 人成功。
+```
+
+---
+
+# 85. API 测试
+
+至少覆盖：
+
+```text
+登录
+
+创建申请
+
+审批申请
+
+创建预约
+
+取消预约
+
+创建报修
+
+维修接单
+
+维修完成
+
+活动报名
+
+通知查询
+
+AI 对话
+```
+
+---
+
+# 86. AI 测试
+
+测试：
+
+```text
+查校园规定
+
+查询个人预约
+
+查询申请进度
+
+寻找空闲教室
+
+查询报修状态
+```
+
+必须确认 AI 不会：
+
+```text
+越权查询其他学生数据。
+```
+
+---
+
+# 87. AI 安全
+
+Agent Tool 必须获取：
+
+```text
+CurrentUser
+```
+
+不能让 AI 自己传：
+
+```text
+studentId
+```
+
+然后随便查询任何学生。
+
+例如：
+
+```text
+getMyApplication()
+```
+
+优于：
+
+```text
+getApplication(studentId)
+```
+
+避免 IDOR / 越权风险。
+
+---
+
+# 88. AI 写操作
+
+所有写操作：
+
+```text
+预约
+报修
+报名
+取消
+```
+
+必须：
+
+```text
+AI 生成操作预览
+↓
+用户确认
+↓
+后端执行
+```
+
+禁止大模型直接执行不可逆操作。
+
+---
+
+# 89. RAG 页面
+
+AI 回答校园政策时：
+
+必须展示：
+
+```text
+资料来源
+```
+
+例如：
+
+```text
+参考资料
+
+《学生请假管理办法》
+第 3.2 节
+
+《学生手册 2026》
+第 42 页
+```
+
+前端使用：
+
+```text
+SourceReference
+```
+
+组件。
+
+---
+
+# 90. 前端 AI Tool Call 展示
+
+当 Agent 查询数据时，可显示轻量状态：
+
+```text
+正在查询你的课程安排……
+
+✓ 已读取课程数据
+```
+
+不要暴露：
+
+```text
+内部 Tool 参数
+数据库 SQL
+系统 Prompt
+```
+
+---
+
+# 91. 页面优先级
+
+第一阶段：
+
+```text
+登录
+
+智慧首页
+
+校园事务
+
+我的申请
+
+审批中心
+
+场地预约
+```
+
+第二阶段：
+
+```text
+校园报修
+
+校园活动
+
+校园通知
+
+消息中心
+```
+
+第三阶段：
+
+```text
+AI Campus Agent
+
+RAG
+
+数据分析
+```
+
+第四阶段：
+
+```text
+系统管理
+
+权限
+
+操作日志
+
+Docker
+
+测试
+```
+
+---
+
+# 92. 最重要的视觉页面
+
+重点打磨：
+
+```text
+智慧校园首页
+
+校园办事大厅
+
+申请详情
+
+审批中心
+
+场地预约
+
+场地详情与时间表
+
+校园报修详情
+
+AI Campus Copilot
+```
+
+这 8 个页面是整个项目的视觉核心。
+
+---
+
+# 93. 页面设计禁止事项
+
+禁止：
+
+1. 每个页面都是表格。
+2. 每个页面都是四个 KPI 卡片。
+3. 大面积蓝色渐变。
+4. 玻璃拟态。
+5. 巨大圆角。
+6. 夸张阴影。
+7. 过度动效。
+8. 满屏统计数字。
+9. 左侧几十个菜单。
+10. 大量无意义 Icon。
+11. 所有页面一个模板复制。
+12. Element Plus 默认风格直接交付。
+13. 操作按钮颜色五颜六色。
+14. 中英文混杂。
+15. 假按钮。
+16. 静态 Mock 当成最终数据。
+
+---
+
+# 94. 后端禁止事项
+
+禁止：
+
+1. Controller 写全部业务逻辑。
+2. 所有接口只有 CRUD。
+3. 没有事务。
+4. 没有 RBAC。
+5. 只做前端权限。
+6. 使用用户传入 ID 决定个人数据范围。
+7. 任意修改业务状态。
+8. 不处理并发预约。
+9. 不防重复提交。
+10. 删除关键业务数据而不记录日志。
+11. 数据库所有字段 varchar。
+12. 一个 Service 数千行。
+13. 没有统一异常。
+14. 没有参数校验。
+15. AI 直接访问数据库。
+16. AI 越权访问业务数据。
+
+---
+
+# 95. AI 开发实施顺序
+
+AI 必须按以下顺序实施。
+
+## STEP 1
+
+输出：
+
+```text
+需求分析
+业务架构
+角色权限
+页面 IA
+ER 设计
+后端模块
+API 规划
+```
+
+随后直接开始开发。
+
+不要重复询问已经明确的需求。
+
+---
+
+## STEP 2
+
+初始化：
+
+```text
+Vue3 + TypeScript
+
+Spring Boot
+```
+
+建立工程结构。
+
+---
+
+## STEP 3
+
+实现：
+
+```text
+MySQL
+Redis
+JWT
+RBAC
+统一响应
+异常处理
+操作日志
+```
+
+---
+
+## STEP 4
+
+实现校园基础资源：
+
+```text
+学生
+教师
+组织
+楼宇
+场地
+```
+
+---
+
+## STEP 5
+
+实现：
+
+```text
+校园事务
++
+审批工作流
+```
+
+---
+
+## STEP 6
+
+实现：
+
+```text
+场地预约
++
+并发控制
+```
+
+---
+
+## STEP 7
+
+实现：
+
+```text
+校园报修
++
+维修工单
+```
+
+---
+
+## STEP 8
+
+实现：
+
+```text
+活动
+通知
+消息
+```
+
+---
+
+## STEP 9
+
+实现：
+
+```text
+Dashboard
+数据分析
+```
+
+---
+
+## STEP 10
+
+实现：
+
+```text
+知识库
+RAG
+AI Campus Agent
+Tool Calling
+SSE
+```
+
+---
+
+## STEP 11
+
+完成：
+
+```text
+测试
+Docker
+Swagger
+README
+部署说明
+```
+
+---
+
+# 96. Docker
+
+至少包含：
+
+```text
+MySQL
+
+Redis
+
+MinIO
+
+Backend
+
+Frontend
+```
+
+如果启用：
+
+```text
+RabbitMQ
+```
+
+一起加入：
+
+```text
+docker-compose.yml
+```
+
+支持一键启动。
+
+---
+
+# 97. README
+
+必须包含：
+
+```text
+项目介绍
+
+系统截图
+
+功能介绍
+
+技术栈
+
+系统架构图
+
+业务架构图
+
+数据库 ER 图
+
+审批流程图
+
+预约流程图
+
+报修流程图
+
+AI Agent 架构图
+
+项目目录
+
+环境准备
+
+启动方式
+
+Docker 部署
+
+测试账号
+
+Swagger 地址
+
+AI 配置方法
+
+项目技术亮点
+```
+
+---
+
+# 98. 毕业设计重点技术亮点
+
+论文和答辩重点突出：
+
+## 亮点一
+
+基于 RBAC + 数据范围的多角色校园权限体系。
+
+## 亮点二
+
+基于 Flowable 的动态校园事务审批。
+
+## 亮点三
+
+Redis + 数据库约束实现高并发资源预约。
+
+## 亮点四
+
+状态机驱动校园报修工单生命周期。
+
+## 亮点五
+
+RabbitMQ 实现业务事件与消息通知解耦。
+
+## 亮点六
+
+Spring AI + Tool Calling 实现 Campus Agent。
+
+## 亮点七
+
+基于 RAG 的校园规章知识问答。
+
+## 亮点八
+
+AI Agent 与真实校园业务系统结合。
+
+## 亮点九
+
+多角色差异化 Dashboard。
+
+## 亮点十
+
+完整前后端企业级工程化。
+
+---
+
+# 99. 最终业务验收场景
+
+## 场景一：学生请假
+
+```text
+学生登录
+↓
+校园办事大厅
+↓
+填写请假申请
+↓
+提交
+↓
+Flowable 创建审批流程
+↓
+班主任审批
+↓
+辅导员审批
+↓
+学生收到消息
+↓
+申请完成
+```
+
+---
+
+## 场景二：实验室预约
+
+```text
+选择实验室
+↓
+查看空闲时间
+↓
+选择时间
+↓
+提交预约
+↓
+Redis 并发锁
+↓
+后端检查冲突
+↓
+创建预约
+↓
+消息通知
+```
+
+多个用户同时预约同一时段时：
+
+```text
+只能一个成功。
+```
+
+---
+
+## 场景三：校园报修
+
+```text
+学生上传故障图片
+↓
+填写故障描述
+↓
+AI 辅助分类
+↓
+创建工单
+↓
+系统分配维修组
+↓
+维修人员接单
+↓
+维修
+↓
+上传处理结果
+↓
+用户确认
+↓
+评价
+↓
+关闭
+```
+
+---
+
+## 场景四：AI 查询
+
+用户：
+
+```text
+我明天下午有哪些课？
+```
+
+AI：
+
+```text
+调用课程 Tool
+↓
+读取当前学生
+↓
+读取课程
+↓
+返回结果
+```
+
+---
+
+## 场景五：AI 找场地
+
+用户：
+
+```text
+帮我找明天下午 3 点可以用的实验室。
+```
+
+AI：
+
+```text
+解析时间
+↓
+查询实验室
+↓
+检查课程占用
+↓
+检查预约
+↓
+返回可用场地
+```
+
+---
+
+## 场景六：AI 政策问答
+
+用户：
+
+```text
+奖学金申请有哪些要求？
+```
+
+系统：
+
+```text
+RAG
+↓
+校园知识库检索
+↓
+生成回答
+↓
+展示政策来源
+```
+
+---
+
+# 100. 最终项目定义
+
+整个项目最终应该体现：
+
+```text
+CampusOne
+
+=
+
+现代 Vue3 企业级前端
+
++
+
+Spring Boot 后端
+
++
+
+多角色 RBAC
+
++
+
+数据权限
+
++
+
+工作流审批
+
++
+
+高并发预约
+
++
+
+校园报修工单
+
++
+
+校园活动
+
++
+
+统一消息中心
+
++
+
+MySQL
+
++
+
+Redis
+
++
+
+RabbitMQ
+
++
+
+MinIO
+
++
+
+数据可视化
+
++
+
+Spring AI
+
++
+
+RAG
+
++
+
+AI Agent
+
++
+
+Tool Calling
+
++
+
+Docker
+
++
+
+自动化测试
+```
+
+最终不允许成为：
+
+```text
+Spring Boot
++
+Vue
++
+学生 CRUD
+```
+
+而应该让用户在打开系统后能够明显感受到：
+
+> 这是一个围绕真实高校场景设计的现代化校园数字服务产品，而不是一个套着后台模板的课程设计。
+
+---
+
+# 101. 最终 AI 执行要求
+
+从现在开始根据本设计文档实际开发系统。
+
+开发过程中：
+
+* 不要反复询问已明确需求。
+* 遇到小型细节自行按照真实校园系统合理设计。
+* 保持前后端字段、状态、接口一致。
+* 每完成一个模块检查是否存在假按钮。
+* 每完成一个业务模块验证完整业务链。
+* 所有关键功能必须连接真实后端。
+* 所有复杂状态必须通过 Service 状态机修改。
+* 所有个人数据必须通过当前登录身份获取。
+* 所有写操作必须校验权限。
+* 所有高并发业务必须考虑并发安全。
+* 所有 AI Tool 必须经过权限体系访问业务 Service。
+* AI 不直接访问数据库。
+* AI 不得越权。
+* AI 写操作必须经过用户确认。
+* UI 全局遵循本 Design System。
+* 所有页面中文展示。
+* 最终项目必须能够真实启动、登录、操作和完整演示。
+
+如果需求没有明确某个辅助字段、次要页面或视觉细节，可以根据高校真实使用场景自行完善。
+
+但是不得擅自改变：
+
+```text
+Vue3 + TypeScript
+
+Spring Boot
+
+CampusOne 产品定位
+
+智慧校园服务型架构
+
+RBAC 权限体系
+
+审批工作流
+
+预约并发模型
+
+AI Campus Agent
+
+RAG
+
+整体 UI Design System
+```
+
+最终目标：
+
+> 打造一个可以用于毕业设计答辩、个人作品集和 Java 全栈 / AI 应用岗位面试展示的高质量智慧校园综合服务平台。
