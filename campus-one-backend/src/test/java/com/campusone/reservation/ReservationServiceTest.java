@@ -8,6 +8,9 @@ import com.campusone.reservation.mapper.CampusResourceMapper;
 import com.campusone.reservation.mapper.ResourceReservationMapper;
 import com.campusone.reservation.service.impl.ReservationServiceImpl;
 import com.campusone.security.UserContext;
+import com.campusone.system.user.entity.User;
+import com.campusone.system.user.mapper.UserMapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -40,6 +43,9 @@ class ReservationServiceTest {
 
     @Mock
     private RedissonClient redissonClient;
+
+    @Mock
+    private UserMapper userMapper;
 
     @Mock
     private RLock lock;
@@ -100,6 +106,34 @@ class ReservationServiceTest {
     }
 
     @Test
+    @DisplayName("可用时段 - 任意区间重叠都标记为不可用")
+    void testAvailability_DetectsPartialOverlap() {
+        ResourceReservation occupied = new ResourceReservation();
+        occupied.setStartTime("09:00");
+        occupied.setEndTime("11:00");
+        when(resourceMapper.selectById(1L)).thenReturn(testResource);
+        when(reservationMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(occupied));
+
+        List<Map<String, Object>> result = reservationService.getAvailability(
+                1L, LocalDate.now().plusDays(1).toString());
+
+        assertFalse((Boolean) result.get(0).get("available"));
+        assertFalse((Boolean) result.get(1).get("available"));
+        assertTrue((Boolean) result.get(2).get("available"));
+    }
+
+    @Test
+    @DisplayName("可用时段 - 非法日期返回业务错误")
+    void testAvailability_InvalidDate() {
+        when(resourceMapper.selectById(1L)).thenReturn(testResource);
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> reservationService.getAvailability(1L, "not-a-date"));
+
+        assertEquals("预约日期格式不正确", ex.getMessage());
+    }
+
+    @Test
     @DisplayName("场地并发预约 - 成功场景")
     void testCreateReservation_Success() throws Exception {
         when(redissonClient.getLock(anyString())).thenReturn(lock);
@@ -117,6 +151,144 @@ class ReservationServiceTest {
         assertTrue(result.getReservationNo().startsWith("RS"));
         assertEquals(1L, result.getUserId());
         verify(lock).unlock();
+    }
+
+    @Test
+    @DisplayName("需要审批的场地创建预约后保持待审批")
+    void testCreateReservation_ApprovalRequired() throws Exception {
+        testResource.setNeedApproval(true);
+        when(redissonClient.getLock(anyString())).thenReturn(lock);
+        when(lock.tryLock(anyLong(), anyLong(), any())).thenReturn(true);
+        when(lock.isHeldByCurrentThread()).thenReturn(true);
+        when(resourceMapper.selectById(1L)).thenReturn(testResource);
+        when(reservationMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+        when(reservationMapper.insert(any(ResourceReservation.class))).thenReturn(1);
+
+        ResourceReservation result = reservationService.createReservation(testReservation, 1L);
+
+        assertEquals("PENDING", result.getStatus());
+        verify(lock).unlock();
+    }
+
+    @Test
+    @DisplayName("待审核预约会补充场地和申请人名称")
+    void testPendingReservations_EnrichesDisplayNames() {
+        ResourceReservation pending = new ResourceReservation();
+        pending.setId(8L);
+        pending.setResourceId(1L);
+        pending.setUserId(4L);
+        pending.setStatus("PENDING");
+
+        Page<ResourceReservation> resultPage = new Page<>(1, 20);
+        resultPage.setRecords(List.of(pending));
+        when(reservationMapper.selectPendingForScope(any(), eq(9L), eq("ALL"), isNull(), isNull()))
+                .thenReturn(resultPage);
+        when(userMapper.selectById(9L)).thenReturn(superAdmin(9L));
+        when(resourceMapper.selectBatchIds(anyCollection())).thenReturn(List.of(testResource));
+
+        User applicant = new User();
+        applicant.setId(4L);
+        applicant.setRealName("周同学");
+        when(userMapper.selectBatchIds(anyCollection())).thenReturn(List.of(applicant));
+
+        var result = reservationService.getPendingReservations(9L, 1, 20);
+
+        assertEquals("软件实验室 305", result.getRecords().get(0).getResourceName());
+        assertEquals("周同学", result.getRecords().get(0).getUserName());
+    }
+
+    @Test
+    @DisplayName("预约列表在真实姓名为空时回退到用户名")
+    void testPendingReservations_FallsBackToUsername() {
+        ResourceReservation pending = new ResourceReservation();
+        pending.setResourceId(1L);
+        pending.setUserId(4L);
+        pending.setStatus("PENDING");
+        Page<ResourceReservation> resultPage = new Page<>(1, 20);
+        resultPage.setRecords(List.of(pending));
+        when(reservationMapper.selectPendingForScope(any(), eq(9L), eq("ALL"), isNull(), isNull()))
+                .thenReturn(resultPage);
+        when(userMapper.selectById(9L)).thenReturn(superAdmin(9L));
+        when(resourceMapper.selectBatchIds(anyCollection())).thenReturn(List.of(testResource));
+
+        User applicant = new User();
+        applicant.setId(4L);
+        applicant.setUsername("student01");
+        when(userMapper.selectBatchIds(anyCollection())).thenReturn(List.of(applicant));
+
+        var result = reservationService.getPendingReservations(9L, 1, 20);
+
+        assertEquals("student01", result.getRecords().get(0).getUserName());
+    }
+
+    @Test
+    @DisplayName("预约审核 - 管理员通过后记录审核人和时间")
+    void testReviewReservation_Approve() {
+        testReservation.setId(1L);
+        testReservation.setStatus("PENDING");
+        when(reservationMapper.selectById(1L)).thenReturn(testReservation);
+        when(reservationMapper.updateById(any(ResourceReservation.class))).thenReturn(1);
+        when(userMapper.selectById(9L)).thenReturn(superAdmin(9L));
+
+        reservationService.reviewReservation(1L, true, "材料齐全", 9L);
+
+        assertEquals("CONFIRMED", testReservation.getStatus());
+        assertEquals(9L, testReservation.getApprovedBy());
+        assertEquals("材料齐全", testReservation.getApprovalRemark());
+        assertNotNull(testReservation.getApprovedAt());
+    }
+
+    @Test
+    @DisplayName("预约审核 - 学院管理员不能审核其他学院预约")
+    void testReviewReservation_RejectsOutOfScopeReviewer() {
+        testReservation.setId(1L);
+        testReservation.setUserId(4L);
+        testReservation.setStatus("PENDING");
+        when(reservationMapper.selectById(1L)).thenReturn(testReservation);
+        User reviewer = new User();
+        reviewer.setId(9L);
+        reviewer.setRole("ADMIN");
+        reviewer.setStatus(1);
+        reviewer.setDataScope("COLLEGE");
+        reviewer.setCollegeId(1L);
+        User applicant = new User();
+        applicant.setId(4L);
+        applicant.setCollegeId(2L);
+        when(userMapper.selectById(9L)).thenReturn(reviewer);
+        when(userMapper.selectById(4L)).thenReturn(applicant);
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> reservationService.reviewReservation(1L, true, null, 9L));
+
+        assertEquals(403, ex.getCode());
+        verify(reservationMapper, never()).updateById(any(ResourceReservation.class));
+    }
+
+    @Test
+    @DisplayName("预约审核 - 驳回必须填写原因")
+    void testReviewReservation_RejectRequiresComment() {
+        testReservation.setId(1L);
+        testReservation.setStatus("PENDING");
+        when(reservationMapper.selectById(1L)).thenReturn(testReservation);
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> reservationService.reviewReservation(1L, false, " ", 9L));
+
+        assertEquals("驳回预约时必须填写原因", ex.getMessage());
+        verify(reservationMapper, never()).updateById(any(ResourceReservation.class));
+    }
+
+    @Test
+    @DisplayName("预约审核 - 已处理预约不能重复审核")
+    void testReviewReservation_PreventsDuplicateReview() {
+        testReservation.setId(1L);
+        testReservation.setStatus("CONFIRMED");
+        when(reservationMapper.selectById(1L)).thenReturn(testReservation);
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> reservationService.reviewReservation(1L, true, null, 9L));
+
+        assertEquals("该预约已经处理，不能重复审核", ex.getMessage());
     }
 
     @Test
@@ -253,6 +425,24 @@ class ReservationServiceTest {
     }
 
     @Test
+    @DisplayName("取消预约 - 并发状态变化时返回冲突")
+    void testCancelReservation_ConcurrentConflict() {
+        testReservation.setId(1L);
+        testReservation.setUserId(1L);
+        testReservation.setStatus("PENDING");
+        when(reservationMapper.selectById(1L)).thenReturn(testReservation);
+        when(reservationMapper.updateById(any(ResourceReservation.class))).thenReturn(0);
+
+        try (MockedStatic<UserContext> userContext = mockStatic(UserContext.class)) {
+            userContext.when(UserContext::getCurrentUserRole).thenReturn("STUDENT");
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> reservationService.cancelReservation(1L, 1L));
+            assertEquals(409, ex.getCode());
+        }
+    }
+
+    @Test
     @DisplayName("预约时间 - 结束时间晚于开始时间校验通过")
     void testCreateReservation_ValidTimeRange() throws Exception {
         when(redissonClient.getLock(anyString())).thenReturn(lock);
@@ -323,5 +513,14 @@ class ReservationServiceTest {
                 () -> reservationService.createReservation(testReservation, 1L));
         assertEquals("预约时间格式不正确", ex.getMessage());
         verify(lock).unlock();
+    }
+
+    private User superAdmin(Long id) {
+        User user = new User();
+        user.setId(id);
+        user.setRole("SUPER_ADMIN");
+        user.setStatus(1);
+        user.setDataScope("ALL");
+        return user;
     }
 }

@@ -1,6 +1,7 @@
 package com.campusone.application.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.campusone.application.dto.ApprovalAction;
@@ -124,12 +125,28 @@ public class ApprovalServiceImpl implements ApprovalService {
                         .last("LIMIT 1"));
         if (previous == null) throw new BusinessException("已是首审节点，无法退回上一步");
 
+        ensureApprovalUpdated(approvalRecordMapper.update(null, new UpdateWrapper<ApprovalRecord>()
+                .eq("id", current.getId())
+                .eq("assignee_id", approverId)
+                .eq("action", "PENDING")
+                .set("action", "ROLLED_BACK")
+                .set("comment", dto.getComment())));
+        ensureApprovalUpdated(approvalRecordMapper.update(null, new UpdateWrapper<ApprovalRecord>()
+                .eq("id", previous.getId())
+                .eq("action", "APPROVED")
+                .set("action", "PENDING")));
         current.setAction("ROLLED_BACK");
         current.setComment(dto.getComment());
-        approvalRecordMapper.updateById(current);
-
         previous.setAction("PENDING");
-        approvalRecordMapper.updateById(previous);
+
+        ApprovalRecord retry = new ApprovalRecord();
+        retry.setApplicationId(applicationId);
+        retry.setTaskId(current.getTaskId());
+        retry.setNodeName(current.getNodeName());
+        retry.setAssigneeId(current.getAssigneeId());
+        retry.setAssigneeName(current.getAssigneeName());
+        retry.setAction("WAIT");
+        approvalRecordMapper.insert(retry);
 
         app.setCurrentNode(previous.getNodeName());
         applicationMapper.updateById(app);
@@ -152,6 +169,9 @@ public class ApprovalServiceImpl implements ApprovalService {
     @Override
     @Transactional
     public void processApproval(Long applicationId, Long approverId, ApprovalAction action) {
+        if (action == null || !("APPROVE".equals(action.getAction()) || "REJECT".equals(action.getAction()))) {
+            throw new BusinessException("审批动作不合法");
+        }
         ServiceApplication app = applicationMapper.selectById(applicationId);
         if (app == null) throw new BusinessException("申请不存在");
         if (!"PENDING".equals(app.getStatus())) throw new BusinessException("该申请当前状态不允许审批");
@@ -165,9 +185,15 @@ public class ApprovalServiceImpl implements ApprovalService {
         if (record == null) throw new BusinessException("无待审批记录");
         if (!record.getAssigneeId().equals(approverId)) throw new BusinessException("您不是该步骤的审批人");
 
-        record.setAction("APPROVE".equals(action.getAction()) ? "APPROVED" : "REJECTED");
+        String decision = "APPROVE".equals(action.getAction()) ? "APPROVED" : "REJECTED";
+        ensureApprovalUpdated(approvalRecordMapper.update(null, new UpdateWrapper<ApprovalRecord>()
+                .eq("id", record.getId())
+                .eq("assignee_id", approverId)
+                .eq("action", "PENDING")
+                .set("action", decision)
+                .set("comment", action.getComment())));
+        record.setAction(decision);
         record.setComment(action.getComment());
-        approvalRecordMapper.updateById(record);
 
         if ("REJECT".equals(action.getAction())) {
             app.setStatus("REJECTED");
@@ -184,8 +210,11 @@ public class ApprovalServiceImpl implements ApprovalService {
                    .last("LIMIT 1");
         ApprovalRecord nextWait = approvalRecordMapper.selectOne(waitWrapper);
         if (nextWait != null) {
+            ensureApprovalUpdated(approvalRecordMapper.update(null, new UpdateWrapper<ApprovalRecord>()
+                    .eq("id", nextWait.getId())
+                    .eq("action", "WAIT")
+                    .set("action", "PENDING")));
             nextWait.setAction("PENDING");
-            approvalRecordMapper.updateById(nextWait);
             app.setCurrentNode(nextWait.getNodeName());
             applicationMapper.updateById(app);
         } else {
@@ -199,42 +228,91 @@ public class ApprovalServiceImpl implements ApprovalService {
     @Transactional
     public void initApprovalSteps(Long applicationId) {
         ServiceApplication app = applicationMapper.selectById(applicationId);
+        if (app == null) throw new BusinessException("申请不存在");
+        User applicant = userMapper.selectById(app.getApplicantId());
+        if (applicant == null || !Integer.valueOf(1).equals(applicant.getStatus())) {
+            throw new BusinessException("申请人不存在或账号已停用");
+        }
         // 第一步：按申请类型路由到对应「群体」负责首审（目录里 reviewRole 决定）
-        String firstRole = ServiceCatalogRegistry.reviewRoleOf(app != null ? app.getServiceId() : null);
-        User firstUser = pickAssignee(firstRole);
+        String firstRole = ServiceCatalogRegistry.reviewRoleOf(app.getServiceId());
+        User firstUser = pickScopedAssignee(firstRole, applicant, applicationId);
         // 第二步：终审由管理员/超管负责
-        User finalUser = pickAssignee("SUPER_ADMIN");
-        if (finalUser == null) finalUser = pickAssignee("ADMIN");
+        User finalUser = pickScopedAssignee("ADMIN", applicant, applicationId);
+        if (finalUser == null) finalUser = pickScopedAssignee("SUPER_ADMIN", applicant, applicationId);
+        if (firstUser == null) {
+            throw new BusinessException("未找到可处理该申请的" + roleLabel(firstRole) + "，请联系管理员配置组织和数据范围");
+        }
+        if (finalUser == null) {
+            throw new BusinessException("未找到可处理该申请的管理员，请联系系统管理员");
+        }
 
         ApprovalRecord step1 = new ApprovalRecord();
         step1.setApplicationId(applicationId);
         String step1Node = "TEACHER".equals(firstRole) ? "教师审批" : "职工审批";
         step1.setNodeName(step1Node);
-        step1.setAssigneeId(firstUser != null ? firstUser.getId() : 1L);
-        step1.setAssigneeName(firstUser != null ? label(firstUser) : "admin");
+        step1.setAssigneeId(firstUser.getId());
+        step1.setAssigneeName(label(firstUser));
         step1.setAction("PENDING");
         approvalRecordMapper.insert(step1);
 
         // 把当前负责节点写回申请，前端详情可展示「负责群体」
-        if (app != null) {
-            app.setCurrentNode(step1Node);
-            applicationMapper.updateById(app);
-        }
+        app.setCurrentNode(step1Node);
+        applicationMapper.updateById(app);
 
         ApprovalRecord step2 = new ApprovalRecord();
         step2.setApplicationId(applicationId);
         step2.setNodeName("管理员审批");
-        step2.setAssigneeId(finalUser != null ? finalUser.getId() : 1L);
-        step2.setAssigneeName(finalUser != null ? label(finalUser) : "admin");
+        step2.setAssigneeId(finalUser.getId());
+        step2.setAssigneeName(label(finalUser));
         step2.setAction("WAIT"); // 第一步未办结前不可见、不可处理
         approvalRecordMapper.insert(step2);
     }
 
-    /** 取某角色的第一位在职用户作为负责审批人，找不到则回退 */
-    private User pickAssignee(String role) {
+    /**
+     * 只从能够覆盖申请人组织范围的在职用户中选择审批人，并按申请号在候选人之间分摊。
+     * 不再回退到固定用户，避免跨学院越权或把全部申请压给第一个账号。
+     */
+    private User pickScopedAssignee(String role, User applicant, Long applicationId) {
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(User::getRole, role).eq(User::getStatus, 1).orderByAsc(User::getId).last("LIMIT 1");
-        return userMapper.selectOne(wrapper);
+        wrapper.eq(User::getRole, role)
+                .eq(User::getStatus, 1)
+                .and(scope -> {
+                    scope.eq(User::getDataScope, "ALL");
+                    if (applicant.getCollegeId() != null) {
+                        scope.or(college -> college.eq(User::getDataScope, "COLLEGE")
+                                .eq(User::getCollegeId, applicant.getCollegeId()));
+                    }
+                    if (applicant.getClassId() != null) {
+                        scope.or(clazz -> clazz.eq(User::getDataScope, "CLASS")
+                                .eq(User::getClassId, applicant.getClassId()));
+                    }
+                    scope.or(self -> self.eq(User::getId, applicant.getId())
+                            .and(dataScope -> dataScope.eq(User::getDataScope, "SELF")
+                                    .or().isNull(User::getDataScope)));
+                })
+                .orderByAsc(User::getId);
+        List<User> candidates = userMapper.selectList(wrapper).stream()
+                .filter(candidate -> canManage(candidate, applicant))
+                .toList();
+        if (candidates.isEmpty()) return null;
+        int index = Math.floorMod(applicationId, candidates.size());
+        return candidates.get(index);
+    }
+
+    private boolean canManage(User candidate, User applicant) {
+        String scope = candidate.getDataScope();
+        if ("ALL".equals(scope)) return true;
+        if ("COLLEGE".equals(scope)) {
+            return candidate.getCollegeId() != null && candidate.getCollegeId().equals(applicant.getCollegeId());
+        }
+        if ("CLASS".equals(scope)) {
+            return candidate.getClassId() != null && candidate.getClassId().equals(applicant.getClassId());
+        }
+        return candidate.getId().equals(applicant.getId());
+    }
+
+    private String roleLabel(String role) {
+        return "TEACHER".equals(role) ? "教师审批人" : "职工审批人";
     }
 
     private String label(User u) {
@@ -249,5 +327,11 @@ public class ApprovalServiceImpl implements ApprovalService {
         ApprovalRecord skip = new ApprovalRecord();
         skip.setAction("SKIPPED");
         approvalRecordMapper.update(skip, wrapper);
+    }
+
+    private void ensureApprovalUpdated(int updatedRows) {
+        if (updatedRows != 1) {
+            throw new BusinessException(409, "审批状态已变化，请刷新后重试");
+        }
     }
 }

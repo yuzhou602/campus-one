@@ -1,5 +1,6 @@
 package com.campusone.application;
 
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.campusone.application.dto.ApprovalAction;
 import com.campusone.application.dto.ApplicationDTO;
 import com.campusone.application.entity.ApprovalRecord;
@@ -15,12 +16,15 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+
+import java.util.List;
 
 @ExtendWith(MockitoExtension.class)
 class ApprovalServiceTest {
@@ -63,9 +67,23 @@ class ApprovalServiceTest {
     @Test
     @DisplayName("提交申请 - 创建申请并初始化审批步骤")
     void testSubmitApplication_InitializesSteps() {
-        when(applicationMapper.insert(any(ServiceApplication.class))).thenReturn(1);
+        when(applicationMapper.insert(any(ServiceApplication.class))).thenAnswer(invocation -> {
+            ServiceApplication application = invocation.getArgument(0);
+            application.setId(1L);
+            return 1;
+        });
+        when(applicationMapper.selectById(1L)).thenAnswer(invocation -> testApp);
         when(approvalRecordMapper.insert(any(ApprovalRecord.class))).thenReturn(1);
-        when(userMapper.selectOne(any())).thenReturn(user(5L, "COUNSELOR", "王职工"));
+        User applicant = user(100L, "STUDENT", "张同学");
+        applicant.setStatus(1);
+        applicant.setCollegeId(1L);
+        when(userMapper.selectById(100L)).thenReturn(applicant);
+        User counselor = user(5L, "COUNSELOR", "王职工");
+        counselor.setDataScope("COLLEGE");
+        counselor.setCollegeId(1L);
+        User admin = user(1L, "ADMIN", "管理员");
+        admin.setDataScope("ALL");
+        when(userMapper.selectList(any())).thenReturn(List.of(counselor), List.of(admin));
 
         ApplicationDTO dto = new ApplicationDTO();
         dto.setServiceId(10L);
@@ -76,6 +94,23 @@ class ApprovalServiceTest {
         assertEquals("PENDING", result.getStatus());
         assertTrue(result.getApplicationNo().startsWith("APP"));
         verify(approvalRecordMapper, times(2)).insert(any(ApprovalRecord.class));
+    }
+
+    @Test
+    @DisplayName("初始化审批 - 不允许回退到固定管理员账号")
+    void testInitApprovalSteps_FailsWithoutScopedAssignee() {
+        when(applicationMapper.selectById(1L)).thenReturn(testApp);
+        User applicant = user(100L, "STUDENT", "张同学");
+        applicant.setStatus(1);
+        applicant.setCollegeId(2L);
+        when(userMapper.selectById(100L)).thenReturn(applicant);
+        when(userMapper.selectList(any())).thenReturn(List.of());
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> approvalService.initApprovalSteps(1L));
+
+        assertTrue(ex.getMessage().contains("未找到可处理该申请"));
+        verify(approvalRecordMapper, never()).insert(any(ApprovalRecord.class));
     }
 
     private User user(Long id, String role, String name) {
@@ -93,7 +128,7 @@ class ApprovalServiceTest {
         when(applicationMapper.selectById(1L)).thenReturn(testApp);
         // 第一次 selectOne 取当前待审批记录，第二次查等待节点返回 null → 办结
         when(approvalRecordMapper.selectOne(any())).thenReturn(testRecord, (ApprovalRecord) null);
-        when(approvalRecordMapper.updateById(any(ApprovalRecord.class))).thenReturn(1);
+        when(approvalRecordMapper.update(isNull(), any(UpdateWrapper.class))).thenReturn(1);
         when(applicationMapper.updateById(any(ServiceApplication.class))).thenReturn(1);
 
         approvalService.processApproval(1L, 1L, action("APPROVE"));
@@ -116,7 +151,7 @@ class ApprovalServiceTest {
         when(applicationMapper.selectById(1L)).thenReturn(testApp);
         // 第一次取当前待审批记录，第二次命中下一等待节点 → 激活
         when(approvalRecordMapper.selectOne(any())).thenReturn(testRecord, nextRec);
-        when(approvalRecordMapper.updateById(any(ApprovalRecord.class))).thenReturn(1);
+        when(approvalRecordMapper.update(isNull(), any(UpdateWrapper.class))).thenReturn(1);
         when(applicationMapper.updateById(any(ServiceApplication.class))).thenReturn(1);
 
         approvalService.processApproval(1L, 1L, action("APPROVE"));
@@ -133,15 +168,15 @@ class ApprovalServiceTest {
     void testReject_RejectsApplication() {
         when(applicationMapper.selectById(1L)).thenReturn(testApp);
         when(approvalRecordMapper.selectOne(any())).thenReturn(testRecord);
-        when(approvalRecordMapper.updateById(any(ApprovalRecord.class))).thenReturn(1);
+        when(approvalRecordMapper.update(isNull(), any(UpdateWrapper.class))).thenReturn(1);
         when(applicationMapper.updateById(any(ServiceApplication.class))).thenReturn(1);
-        when(approvalRecordMapper.update(any(), any())).thenReturn(1);
+        when(approvalRecordMapper.update(any(ApprovalRecord.class), any())).thenReturn(1);
 
         approvalService.processApproval(1L, 1L, action("REJECT"));
 
         assertEquals("REJECTED", testRecord.getAction());
         assertEquals("REJECTED", testApp.getStatus());
-        verify(approvalRecordMapper).update(any(), any());
+        verify(approvalRecordMapper).update(any(ApprovalRecord.class), any());
     }
 
     @Test
@@ -189,6 +224,31 @@ class ApprovalServiceTest {
     }
 
     @Test
+    @DisplayName("未知审批动作不会被当作驳回")
+    void testProcessApproval_InvalidAction() {
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> approvalService.processApproval(1L, 1L, action("UNKNOWN")));
+
+        assertEquals("审批动作不合法", ex.getMessage());
+        verifyNoInteractions(applicationMapper, approvalRecordMapper);
+    }
+
+    @Test
+    @DisplayName("并发审批时只有首个请求可以认领待审批步骤")
+    void testProcessApproval_ConcurrentConflict() {
+        when(applicationMapper.selectById(1L)).thenReturn(testApp);
+        when(approvalRecordMapper.selectOne(any())).thenReturn(testRecord);
+        when(approvalRecordMapper.update(isNull(), any(UpdateWrapper.class))).thenReturn(0);
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> approvalService.processApproval(1L, 1L, action("APPROVE")));
+
+        assertEquals(409, ex.getCode());
+        assertEquals("审批状态已变化，请刷新后重试", ex.getMessage());
+        verify(applicationMapper, never()).updateById(any(ServiceApplication.class));
+    }
+
+    @Test
     @DisplayName("退回上一步 - 当前步骤置为已退回，上一步重新激活")
     void testRollback_ActivatesPrevious() {
         ApprovalRecord prev = new ApprovalRecord();
@@ -203,7 +263,8 @@ class ApprovalServiceTest {
 
         when(applicationMapper.selectById(1L)).thenReturn(testApp);
         when(approvalRecordMapper.selectOne(any())).thenReturn(testRecord, prev);
-        when(approvalRecordMapper.updateById(any(ApprovalRecord.class))).thenReturn(1);
+        when(approvalRecordMapper.update(isNull(), any(UpdateWrapper.class))).thenReturn(1);
+        when(approvalRecordMapper.insert(any(ApprovalRecord.class))).thenReturn(1);
         when(applicationMapper.updateById(any(ServiceApplication.class))).thenReturn(1);
 
         approvalService.rollbackApproval(1L, 1L, action("APPROVE"));
@@ -212,6 +273,41 @@ class ApprovalServiceTest {
         assertEquals("PENDING", prev.getAction());
         assertEquals("职工审批", testApp.getCurrentNode());
         assertEquals("PENDING", testApp.getStatus());
+        verify(approvalRecordMapper).insert(argThat((ApprovalRecord retry) ->
+                "管理员审批".equals(retry.getNodeName()) && "WAIT".equals(retry.getAction())));
+    }
+
+    @Test
+    @DisplayName("终审退回后重新通过仍需再次终审")
+    void testRollback_RecreatesFinalApprovalStep() {
+        ApprovalRecord previous = new ApprovalRecord();
+        previous.setId(1L);
+        previous.setApplicationId(1L);
+        previous.setNodeName("职工审批");
+        previous.setAssigneeId(1L);
+        previous.setAction("APPROVED");
+        testRecord.setId(2L);
+        testRecord.setNodeName("管理员审批");
+        testRecord.setAssigneeName("管理员");
+
+        when(applicationMapper.selectById(1L)).thenReturn(testApp);
+        when(approvalRecordMapper.selectOne(any())).thenReturn(testRecord, previous);
+        when(approvalRecordMapper.update(isNull(), any(UpdateWrapper.class))).thenReturn(1);
+        when(approvalRecordMapper.insert((ApprovalRecord) any())).thenReturn(1);
+        when(applicationMapper.updateById(any(ServiceApplication.class))).thenReturn(1);
+
+        approvalService.rollbackApproval(1L, 1L, action("APPROVE"));
+
+        ArgumentCaptor<ApprovalRecord> retryCaptor = ArgumentCaptor.forClass(ApprovalRecord.class);
+        verify(approvalRecordMapper).insert(retryCaptor.capture());
+        ApprovalRecord retry = retryCaptor.getValue();
+        when(approvalRecordMapper.selectOne(any())).thenReturn(previous, retry);
+
+        approvalService.processApproval(1L, 1L, action("APPROVE"));
+
+        assertEquals("PENDING", testApp.getStatus());
+        assertEquals("管理员审批", testApp.getCurrentNode());
+        assertEquals("PENDING", retry.getAction());
     }
 
     @Test

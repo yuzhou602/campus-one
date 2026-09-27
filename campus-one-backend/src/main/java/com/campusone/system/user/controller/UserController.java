@@ -5,10 +5,12 @@ import com.campusone.common.response.ApiResponse;
 import com.campusone.common.response.PageResult;
 import com.campusone.security.RequiresRole;
 import com.campusone.system.user.entity.User;
+import com.campusone.system.user.dto.UserScopeUpdateDTO;
 import com.campusone.system.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "用户管理")
@@ -27,5 +29,13 @@ public class UserController {
             @RequestParam(required = false) String keyword) {
         IPage<User> result = userService.listUsers(page, pageSize, keyword);
         return ApiResponse.success(PageResult.of(result));
+    }
+
+    @Operation(summary = "配置用户审批数据范围")
+    @PutMapping("/{id}/data-scope")
+    public ApiResponse<Void> updateDataScope(@PathVariable Long id,
+                                             @Valid @RequestBody UserScopeUpdateDTO request) {
+        userService.updateDataScope(id, request);
+        return ApiResponse.success();
     }
 }

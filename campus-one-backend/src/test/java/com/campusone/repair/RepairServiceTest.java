@@ -1,6 +1,7 @@
 package com.campusone.repair;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.campusone.common.exception.BusinessException;
@@ -8,6 +9,8 @@ import com.campusone.repair.entity.RepairOrder;
 import com.campusone.repair.mapper.RepairOrderMapper;
 import com.campusone.repair.service.impl.RepairServiceImpl;
 import com.campusone.security.UserContext;
+import com.campusone.system.user.entity.User;
+import com.campusone.system.user.mapper.UserMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,6 +33,9 @@ class RepairServiceTest {
 
     @Mock
     private RepairOrderMapper repairOrderMapper;
+
+    @Mock
+    private UserMapper userMapper;
 
     @InjectMocks
     private RepairServiceImpl repairService;
@@ -93,16 +99,38 @@ class RepairServiceTest {
     }
 
     @Test
+    @DisplayName("获取启用的维修服务人员时只返回安全字段")
+    void testListActiveTechnicians() {
+        User technician = new User();
+        technician.setId(6L);
+        technician.setUsername("service01");
+        technician.setRealName("李师傅");
+        technician.setPassword("secret-hash");
+        when(userMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(java.util.List.of(technician));
+
+        var result = repairService.listActiveTechnicians();
+
+        assertEquals(1, result.size());
+        assertEquals(6L, result.get(0).id());
+        assertEquals("李师傅", result.get(0).realName());
+    }
+
+    @Test
     @DisplayName("分配工单 - 同时记录维修人员和状态")
     void testAssignRepair() {
         when(repairOrderMapper.selectById(1L)).thenReturn(testOrder);
-        when(repairOrderMapper.updateById(any(RepairOrder.class))).thenReturn(1);
+        when(repairOrderMapper.update(isNull(), any(UpdateWrapper.class))).thenReturn(1);
+        User assignee = new User();
+        assignee.setId(200L);
+        assignee.setRole("SERVICE");
+        assignee.setStatus(1);
+        when(userMapper.selectById(200L)).thenReturn(assignee);
 
         repairService.assignRepair(1L, 200L);
 
         assertEquals(200L, testOrder.getAssignedUserId());
         assertEquals("ASSIGNED", testOrder.getStatus());
-        verify(repairOrderMapper).updateById(testOrder);
+        verify(repairOrderMapper).update(isNull(), any(UpdateWrapper.class));
     }
 
     @Test
@@ -120,8 +148,9 @@ class RepairServiceTest {
     @DisplayName("接单 - 正常接单")
     void testAcceptRepair_Success() {
         testOrder.setStatus("ASSIGNED");
+        testOrder.setAssignedUserId(2L);
         when(repairOrderMapper.selectById(1L)).thenReturn(testOrder);
-        when(repairOrderMapper.updateById((RepairOrder) any())).thenReturn(1);
+        when(repairOrderMapper.update(isNull(), any(UpdateWrapper.class))).thenReturn(1);
 
         try (MockedStatic<UserContext> userContext = mockStatic(UserContext.class)) {
             userContext.when(UserContext::getCurrentUserRole).thenReturn("SERVICE");
@@ -130,7 +159,7 @@ class RepairServiceTest {
             assertEquals("ACCEPTED", testOrder.getStatus());
             assertEquals(2L, testOrder.getAssignedUserId());
             assertNotNull(testOrder.getAcceptedAt());
-            verify(repairOrderMapper).updateById(testOrder);
+            verify(repairOrderMapper).update(isNull(), any(UpdateWrapper.class));
         }
     }
 
@@ -154,14 +183,14 @@ class RepairServiceTest {
     }
 
     @Test
-    @DisplayName("接单 - 非ADMIN/SERVICE且非指定人")
+    @DisplayName("接单 - 维修人员不能接手分派给他人的工单")
     void testAcceptRepair_Unauthorized() {
         testOrder.setStatus("ASSIGNED");
         testOrder.setAssignedUserId(5L);
         when(repairOrderMapper.selectById(1L)).thenReturn(testOrder);
 
         try (MockedStatic<UserContext> userContext = mockStatic(UserContext.class)) {
-            userContext.when(UserContext::getCurrentUserRole).thenReturn("STUDENT");
+            userContext.when(UserContext::getCurrentUserRole).thenReturn("SERVICE");
 
             assertThrows(BusinessException.class,
                     () -> repairService.acceptRepair(1L, 999L));
@@ -169,17 +198,17 @@ class RepairServiceTest {
     }
 
     @Test
-    @DisplayName("状态流转 - SUBMITTED -> ASSIGNED")
+    @DisplayName("状态流转 - 禁止绕过分配接口直接设为ASSIGNED")
     void testStatusTransition_SubmittedToAssigned() {
         testOrder.setStatus("SUBMITTED");
         when(repairOrderMapper.selectById(1L)).thenReturn(testOrder);
-        when(repairOrderMapper.updateById((RepairOrder) any())).thenReturn(1);
 
         try (MockedStatic<UserContext> userContext = mockStatic(UserContext.class)) {
             userContext.when(UserContext::getCurrentUserRole).thenReturn("ADMIN");
 
-            RepairOrder result = repairService.updateStatus(1L, "ASSIGNED", 2L);
-            assertEquals("ASSIGNED", result.getStatus());
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> repairService.updateStatus(1L, "ASSIGNED", 2L));
+            assertEquals("请使用工单分配接口指定维修人员", ex.getMessage());
         }
     }
 
@@ -188,7 +217,7 @@ class RepairServiceTest {
     void testStatusTransition_AssignedToAccepted() {
         testOrder.setStatus("ASSIGNED");
         when(repairOrderMapper.selectById(1L)).thenReturn(testOrder);
-        when(repairOrderMapper.updateById((RepairOrder) any())).thenReturn(1);
+        when(repairOrderMapper.update(isNull(), any(UpdateWrapper.class))).thenReturn(1);
 
         try (MockedStatic<UserContext> userContext = mockStatic(UserContext.class)) {
             userContext.when(UserContext::getCurrentUserRole).thenReturn("ADMIN");
@@ -203,8 +232,9 @@ class RepairServiceTest {
     @DisplayName("状态流转 - ACCEPTED -> PROCESSING")
     void testStatusTransition_AcceptedToProcessing() {
         testOrder.setStatus("ACCEPTED");
+        testOrder.setAssignedUserId(2L);
         when(repairOrderMapper.selectById(1L)).thenReturn(testOrder);
-        when(repairOrderMapper.updateById((RepairOrder) any())).thenReturn(1);
+        when(repairOrderMapper.update(isNull(), any(UpdateWrapper.class))).thenReturn(1);
 
         try (MockedStatic<UserContext> userContext = mockStatic(UserContext.class)) {
             userContext.when(UserContext::getCurrentUserRole).thenReturn("SERVICE");
@@ -218,8 +248,9 @@ class RepairServiceTest {
     @DisplayName("状态流转 - PROCESSING -> RESOLVED")
     void testStatusTransition_ProcessingToResolved() {
         testOrder.setStatus("PROCESSING");
+        testOrder.setAssignedUserId(2L);
         when(repairOrderMapper.selectById(1L)).thenReturn(testOrder);
-        when(repairOrderMapper.updateById((RepairOrder) any())).thenReturn(1);
+        when(repairOrderMapper.update(isNull(), any(UpdateWrapper.class))).thenReturn(1);
 
         try (MockedStatic<UserContext> userContext = mockStatic(UserContext.class)) {
             userContext.when(UserContext::getCurrentUserRole).thenReturn("SERVICE");
@@ -235,12 +266,12 @@ class RepairServiceTest {
     void testStatusTransition_ResolvedToConfirmed() {
         testOrder.setStatus("RESOLVED");
         when(repairOrderMapper.selectById(1L)).thenReturn(testOrder);
-        when(repairOrderMapper.updateById((RepairOrder) any())).thenReturn(1);
+        when(repairOrderMapper.update(isNull(), any(UpdateWrapper.class))).thenReturn(1);
 
         try (MockedStatic<UserContext> userContext = mockStatic(UserContext.class)) {
-            userContext.when(UserContext::getCurrentUserRole).thenReturn("ADMIN");
+            userContext.when(UserContext::getCurrentUserRole).thenReturn("STUDENT");
 
-            RepairOrder result = repairService.updateStatus(1L, "CONFIRMED", 2L);
+            RepairOrder result = repairService.updateStatus(1L, "CONFIRMED", 100L);
             assertEquals("CONFIRMED", result.getStatus());
         }
     }
@@ -250,14 +281,32 @@ class RepairServiceTest {
     void testStatusTransition_ConfirmedToClosed() {
         testOrder.setStatus("CONFIRMED");
         when(repairOrderMapper.selectById(1L)).thenReturn(testOrder);
-        when(repairOrderMapper.updateById((RepairOrder) any())).thenReturn(1);
+        when(repairOrderMapper.update(isNull(), any(UpdateWrapper.class))).thenReturn(1);
 
         try (MockedStatic<UserContext> userContext = mockStatic(UserContext.class)) {
             userContext.when(UserContext::getCurrentUserRole).thenReturn("ADMIN");
 
             RepairOrder result = repairService.updateStatus(1L, "CLOSED", 2L);
             assertEquals("CLOSED", result.getStatus());
+            assertNotNull(result.getClosedAt());
         }
+    }
+
+    @Test
+    @DisplayName("分配工单 - 拒绝非维修服务人员")
+    void testAssignRepair_RejectsInvalidAssignee() {
+        when(repairOrderMapper.selectById(1L)).thenReturn(testOrder);
+        User student = new User();
+        student.setId(300L);
+        student.setRole("STUDENT");
+        student.setStatus(1);
+        when(userMapper.selectById(300L)).thenReturn(student);
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> repairService.assignRepair(1L, 300L));
+
+        assertEquals("只能分配给启用的维修服务人员", ex.getMessage());
+        verify(repairOrderMapper, never()).update(isNull(), any(UpdateWrapper.class));
     }
 
     @Test
@@ -290,7 +339,7 @@ class RepairServiceTest {
     }
 
     @Test
-    @DisplayName("updateStatus - 非ADMIN/SERVICE且非指定人")
+    @DisplayName("updateStatus - 非管理员不能自行分配工单")
     void testUpdateStatus_Unauthorized() {
         testOrder.setStatus("SUBMITTED");
         testOrder.setAssignedUserId(5L);
@@ -302,5 +351,23 @@ class RepairServiceTest {
             assertThrows(BusinessException.class,
                     () -> repairService.updateStatus(1L, "ASSIGNED", 999L));
         }
+    }
+
+    @Test
+    @DisplayName("分配工单 - 并发状态变化时返回冲突")
+    void testAssignRepair_ConcurrentConflict() {
+        when(repairOrderMapper.selectById(1L)).thenReturn(testOrder);
+        User assignee = new User();
+        assignee.setId(200L);
+        assignee.setRole("SERVICE");
+        assignee.setStatus(1);
+        when(userMapper.selectById(200L)).thenReturn(assignee);
+        when(repairOrderMapper.update(isNull(), any(UpdateWrapper.class))).thenReturn(0);
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> repairService.assignRepair(1L, 200L));
+
+        assertEquals(409, ex.getCode());
+        assertEquals("工单状态已变化，请刷新后重试", ex.getMessage());
     }
 }

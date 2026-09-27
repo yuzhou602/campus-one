@@ -1,6 +1,7 @@
 package com.campusone.system.user.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -10,6 +11,7 @@ import com.campusone.security.TokenBlacklist;
 import com.campusone.security.TokenBlacklistMapper;
 import com.campusone.system.user.dto.LoginRequest;
 import com.campusone.system.user.dto.LoginResponse;
+import com.campusone.system.user.dto.UserScopeUpdateDTO;
 import com.campusone.system.user.entity.User;
 import com.campusone.system.user.mapper.UserMapper;
 import com.campusone.system.user.service.UserService;
@@ -75,6 +77,30 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         }
         wrapper.orderByDesc(User::getCreatedAt);
         return this.page(new Page<>(page, size), wrapper);
+    }
+
+    @Override
+    public void updateDataScope(Long userId, UserScopeUpdateDTO request) {
+        User user = this.getById(userId);
+        if (user == null) throw new BusinessException("用户不存在");
+        String scope = request.getDataScope();
+        if ("COLLEGE".equals(scope) && request.getCollegeId() == null) {
+            throw new BusinessException("学院范围必须选择学院");
+        }
+        if ("CLASS".equals(scope) && request.getClassId() == null) {
+            throw new BusinessException("班级范围必须选择班级");
+        }
+        int updated = this.baseMapper.update(null, new UpdateWrapper<User>()
+                .eq("id", userId)
+                .set("data_scope", scope)
+                .set("college_id", "COLLEGE".equals(scope) ? request.getCollegeId() : null)
+                .set("class_id", "CLASS".equals(scope) ? request.getClassId() : null));
+        if (updated != 1) {
+            throw new BusinessException(409, "用户信息已变化，请刷新后重试");
+        }
+        user.setDataScope(scope);
+        user.setCollegeId("COLLEGE".equals(scope) ? request.getCollegeId() : null);
+        user.setClassId("CLASS".equals(scope) ? request.getClassId() : null);
     }
 
     @Override

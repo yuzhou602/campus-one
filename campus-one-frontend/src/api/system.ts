@@ -7,3 +7,7 @@ export function getUserList(params?: any) {
 export function getSystemInfo() {
   return request.get('/system/info')
 }
+
+export function updateUserDataScope(id: number, data: { dataScope: string; collegeId?: number; classId?: number }) {
+  return request.put(`/users/${id}/data-scope`, data)
+}

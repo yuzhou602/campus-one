@@ -334,7 +334,7 @@ CREATE TABLE IF NOT EXISTS token_blacklist (
     user_id BIGINT,
     expires_at DATETIME NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uk_token (token),
+    INDEX idx_token (token(255)),
     INDEX idx_user_id (user_id),
     INDEX idx_expires_at (expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Token黑名单';

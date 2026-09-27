@@ -52,6 +52,12 @@ INSERT IGNORE INTO campus_college (id, name, code) VALUES
 (2, '电子信息工程学院', 'EIE'),
 (3, '经济管理学院', 'EM');
 
+-- Demo organization and data scopes. Approval routing uses these fields and
+-- refuses to silently send an application to a fixed fallback account.
+UPDATE sys_user SET data_scope = 'ALL' WHERE id = 1;
+UPDATE sys_user SET data_scope = 'COLLEGE', college_id = 1 WHERE id IN (2, 3);
+UPDATE sys_user SET college_id = 1 WHERE id IN (4, 5);
+
 -- Buildings
 INSERT IGNORE INTO campus_building (id, name, campus) VALUES
 (1, '信息楼', '主校区'),

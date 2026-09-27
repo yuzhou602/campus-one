@@ -11,6 +11,8 @@ import com.campusone.reservation.mapper.CampusResourceMapper;
 import com.campusone.reservation.mapper.ResourceReservationMapper;
 import com.campusone.reservation.service.ReservationService;
 import com.campusone.security.UserContext;
+import com.campusone.system.user.entity.User;
+import com.campusone.system.user.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
 import org.redisson.api.RLock;
@@ -29,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class ReservationServiceImpl extends ServiceImpl<ResourceReservationMapper, ResourceReservation> implements ReservationService {
     private final CampusResourceMapper resourceMapper;
+    private final UserMapper userMapper;
     private final RedissonClient redissonClient;
 
     @Override
@@ -62,7 +65,18 @@ public class ReservationServiceImpl extends ServiceImpl<ResourceReservationMappe
 
     @Override
     public List<Map<String, Object>> getAvailability(Long resourceId, String date) {
-        LocalDate reservationDate = LocalDate.parse(date);
+        if (resourceMapper.selectById(resourceId) == null) {
+            throw new BusinessException("场地不存在");
+        }
+        LocalDate reservationDate;
+        try {
+            reservationDate = LocalDate.parse(date);
+        } catch (Exception e) {
+            throw new BusinessException("预约日期格式不正确");
+        }
+        if (reservationDate.isBefore(LocalDate.now())) {
+            throw new BusinessException("不能查询过去日期的可用时段");
+        }
 
         LambdaQueryWrapper<ResourceReservation> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ResourceReservation::getResourceId, resourceId)
@@ -70,19 +84,20 @@ public class ReservationServiceImpl extends ServiceImpl<ResourceReservationMappe
                .in(ResourceReservation::getStatus, "PENDING", "CONFIRMED", "IN_USE");
         List<ResourceReservation> reservations = this.list(wrapper);
 
-        Set<String> occupiedSlots = new HashSet<>();
-        for (ResourceReservation r : reservations) {
-            occupiedSlots.add(r.getStartTime() + "-" + r.getEndTime());
-        }
-
         String[] times = {"08:00-10:00", "10:00-12:00", "12:00-14:00", "14:00-16:00", "16:00-18:00", "18:00-20:00", "20:00-22:00"};
         List<Map<String, Object>> slots = new ArrayList<>();
         for (String time : times) {
             String[] parts = time.split("-");
+            LocalTime slotStart = LocalTime.parse(parts[0]);
+            LocalTime slotEnd = LocalTime.parse(parts[1]);
+            boolean occupied = reservations.stream().anyMatch(reservation ->
+                    overlaps(slotStart, slotEnd,
+                            parseStoredTime(reservation.getStartTime()),
+                            parseStoredTime(reservation.getEndTime())));
             Map<String, Object> slot = new HashMap<>();
             slot.put("startTime", parts[0]);
             slot.put("endTime", parts[1]);
-            slot.put("available", !occupiedSlots.contains(time));
+            slot.put("available", !occupied);
             slots.add(slot);
         }
         return slots;
@@ -125,7 +140,7 @@ public class ReservationServiceImpl extends ServiceImpl<ResourceReservationMappe
                     + UUID.randomUUID().toString().substring(0, 4).toUpperCase();
             reservation.setReservationNo(no);
             reservation.setUserId(userId);
-            reservation.setStatus("CONFIRMED");
+            reservation.setStatus(Boolean.TRUE.equals(resource.getNeedApproval()) ? "PENDING" : "CONFIRMED");
             this.save(reservation);
             return reservation;
         } catch (InterruptedException e) {
@@ -138,10 +153,102 @@ public class ReservationServiceImpl extends ServiceImpl<ResourceReservationMappe
 
     @Override
     public IPage<ResourceReservation> getMyReservations(Long userId, int page, int size) {
-        return this.page(new Page<>(page, size),
+        IPage<ResourceReservation> result = this.page(new Page<>(page, size),
                 new LambdaQueryWrapper<ResourceReservation>()
                         .eq(ResourceReservation::getUserId, userId)
                         .orderByDesc(ResourceReservation::getCreatedAt));
+        return enrichReservations(result);
+    }
+
+    @Override
+    public IPage<ResourceReservation> getPendingReservations(Long reviewerId, int page, int size) {
+        User reviewer = loadReservationReviewer(reviewerId);
+        IPage<ResourceReservation> result = this.baseMapper.selectPendingForScope(
+                new Page<>(page, size), reviewerId, effectiveScope(reviewer),
+                reviewer.getCollegeId(), reviewer.getClassId());
+        return enrichReservations(result);
+    }
+
+    private IPage<ResourceReservation> enrichReservations(IPage<ResourceReservation> page) {
+        List<ResourceReservation> records = page.getRecords();
+        if (records == null || records.isEmpty()) return page;
+
+        Set<Long> resourceIds = records.stream()
+                .map(ResourceReservation::getResourceId)
+                .filter(Objects::nonNull)
+                .collect(java.util.stream.Collectors.toSet());
+        Set<Long> userIds = records.stream()
+                .map(ResourceReservation::getUserId)
+                .filter(Objects::nonNull)
+                .collect(java.util.stream.Collectors.toSet());
+
+        Map<Long, String> resourceNames = resourceIds.isEmpty() ? Map.of()
+                : resourceMapper.selectBatchIds(resourceIds).stream()
+                .collect(java.util.stream.Collectors.toMap(CampusResource::getId, CampusResource::getResourceName));
+        Map<Long, String> userNames = userIds.isEmpty() ? Map.of()
+                : userMapper.selectBatchIds(userIds).stream()
+                .collect(java.util.stream.Collectors.toMap(User::getId, this::displayName));
+
+        records.forEach(record -> {
+            record.setResourceName(resourceNames.get(record.getResourceId()));
+            record.setUserName(userNames.get(record.getUserId()));
+        });
+        return page;
+    }
+
+    private String displayName(User user) {
+        if (user.getRealName() != null && !user.getRealName().isBlank()) return user.getRealName();
+        return user.getUsername() == null ? "" : user.getUsername();
+    }
+
+    private User loadReservationReviewer(Long reviewerId) {
+        User reviewer = userMapper.selectById(reviewerId);
+        if (reviewer == null || !Integer.valueOf(1).equals(reviewer.getStatus())
+                || !("ADMIN".equals(reviewer.getRole()) || "SUPER_ADMIN".equals(reviewer.getRole()))) {
+            throw new BusinessException(403, "无权审核预约");
+        }
+        return reviewer;
+    }
+
+    private String effectiveScope(User reviewer) {
+        if ("SUPER_ADMIN".equals(reviewer.getRole())) return "ALL";
+        return reviewer.getDataScope() == null ? "SELF" : reviewer.getDataScope();
+    }
+
+    private void authorizeReservationReview(Long reviewerId, Long applicantId) {
+        User reviewer = loadReservationReviewer(reviewerId);
+        if ("ALL".equals(effectiveScope(reviewer))) return;
+        User applicant = userMapper.selectById(applicantId);
+        if (applicant == null) throw new BusinessException("预约申请人不存在");
+        boolean allowed = switch (effectiveScope(reviewer)) {
+            case "COLLEGE" -> reviewer.getCollegeId() != null
+                    && reviewer.getCollegeId().equals(applicant.getCollegeId());
+            case "CLASS" -> reviewer.getClassId() != null
+                    && reviewer.getClassId().equals(applicant.getClassId());
+            default -> reviewer.getId().equals(applicant.getId());
+        };
+        if (!allowed) throw new BusinessException(403, "无权审核该范围的预约");
+    }
+
+    @Override
+    @Transactional
+    public void reviewReservation(Long id, boolean approved, String comment, Long reviewerId) {
+        ResourceReservation reservation = this.getById(id);
+        if (reservation == null) throw new BusinessException("预约不存在");
+        if (!"PENDING".equals(reservation.getStatus())) {
+            throw new BusinessException("该预约已经处理，不能重复审核");
+        }
+        if (!approved && (comment == null || comment.isBlank())) {
+            throw new BusinessException("驳回预约时必须填写原因");
+        }
+        authorizeReservationReview(reviewerId, reservation.getUserId());
+        reservation.setStatus(approved ? "CONFIRMED" : "REJECTED");
+        reservation.setApprovedBy(reviewerId);
+        reservation.setApprovalRemark(comment == null ? null : comment.trim());
+        reservation.setApprovedAt(LocalDateTime.now());
+        if (!this.updateById(reservation)) {
+            throw new BusinessException(409, "预约状态已变化，请刷新后重试");
+        }
     }
 
     @Override
@@ -160,7 +267,9 @@ public class ReservationServiceImpl extends ServiceImpl<ResourceReservationMappe
             throw new BusinessException("当前状态不允许取消");
         }
         reservation.setStatus("CANCELLED");
-        this.updateById(reservation);
+        if (!this.updateById(reservation)) {
+            throw new BusinessException(409, "预约状态已变化，请刷新后重试");
+        }
     }
 
     private void validateTimeRange(String startTime, String endTime) {
@@ -178,5 +287,18 @@ public class ReservationServiceImpl extends ServiceImpl<ResourceReservationMappe
         if (!end.isAfter(start)) {
             throw new BusinessException("预约结束时间必须晚于开始时间");
         }
+    }
+
+    private LocalTime parseStoredTime(String value) {
+        try {
+            return LocalTime.parse(value);
+        } catch (Exception e) {
+            throw new BusinessException("已有预约时间数据格式不正确，请联系管理员");
+        }
+    }
+
+    private boolean overlaps(LocalTime firstStart, LocalTime firstEnd,
+                             LocalTime secondStart, LocalTime secondEnd) {
+        return firstStart.isBefore(secondEnd) && firstEnd.isAfter(secondStart);
     }
 }

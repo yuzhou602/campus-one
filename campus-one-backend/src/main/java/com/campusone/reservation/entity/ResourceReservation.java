@@ -12,7 +12,11 @@ public class ResourceReservation {
     private Long id;
     private String reservationNo;
     private Long resourceId;
+    @TableField(exist = false)
+    private String resourceName;
     private Long userId;
+    @TableField(exist = false)
+    private String userName;
     private LocalDate reservationDate;
     private String startTime;
     private String endTime;
@@ -20,6 +24,9 @@ public class ResourceReservation {
     private Integer participantCount;
     private String status;
     private String approvalInstanceId;
+    private Long approvedBy;
+    private String approvalRemark;
+    private LocalDateTime approvedAt;
     @Version
     private Integer version;
     private LocalDateTime createdAt;

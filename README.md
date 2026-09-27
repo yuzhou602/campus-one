@@ -2,11 +2,33 @@
 
 CampusOne 是一个智慧校园综合服务项目，包含 Vue 3 Web 前端、Spring Boot 后端和 iOS 客户端。当前仓库同时提供一个可直接部署到 GitHub Pages 的纯前端在线演示版，方便其他人无需安装数据库或后端即可浏览和操作界面。
 
+当前版本：**v1.1.0**。版本变化见 [CHANGELOG.md](CHANGELOG.md)。
+
+## 项目界面
+
+### 登录与演示入口
+
+![CampusOne 登录与演示入口](docs/screenshots/01-login.png)
+
+### 学生端
+
+| 智慧首页 | 场地预约 |
+| --- | --- |
+| ![学生智慧首页](docs/screenshots/02-student-dashboard.png) | ![场地预约中心](docs/screenshots/03-reservation-center.png) |
+
+### 服务端与管理端
+
+| 维修工作台 | 数据中心 |
+| --- | --- |
+| ![维修人员工作台](docs/screenshots/04-repair-workbench.png) | ![管理端数据中心](docs/screenshots/05-admin-analytics.png) |
+
+![管理端预约审核](docs/screenshots/06-reservation-approvals.png)
+
 ## 在线演示模式
 
 演示版使用浏览器内置的虚构数据，覆盖登录、首页、校园事务、场地预约、报修、活动、通知、审批、数据中心、系统管理和 AI 助手等主要流程。
 
-- 演示账号：`admin`、`student01`、`teacher01`、`counselor01`
+- 演示账号：`admin`、`student01`、`teacher01`、`counselor01`、`service01`
 - 演示密码：`demo123`
 - 新建申请、预约和报修等操作仅保存在当前浏览器的 `localStorage`
 - 页面顶部可一键重置演示数据
@@ -23,7 +45,7 @@ npm run preview
 
 ## 部署到 GitHub Pages
 
-仓库已包含 [Pages 自动部署工作流](.github/workflows/pages.yml)。发布步骤：
+仓库已包含 [持续集成工作流](.github/workflows/ci.yml) 和 [Pages 自动部署工作流](.github/workflows/pages.yml)。发布步骤：
 
 1. 将仓库推送到 GitHub，默认分支使用 `main`。
 2. 打开仓库的 **Settings → Pages**。
@@ -62,6 +84,10 @@ docker compose up --build
 - Swagger：`http://localhost:8080/swagger-ui.html`
 
 不要把 `.env`、数据库文件、上传文件或任何真实密钥提交到 GitHub。公开部署完整后端前，还应使用托管 MySQL/Redis、HTTPS、持久化文件存储，并关闭公网数据库端口与生产环境 Swagger。
+
+生产数据库升级前应先备份并统计 `user_notification`、`resource_reservation` 等业务表规模，在同等数据量的副本演练 Flyway 迁移；涉及外键和索引的迁移应安排在低峰期执行，并监控 MySQL 元数据锁等待。
+
+从旧版本升级后，超级管理员应在“系统管理 → 用户管理”中为教师、辅导员和管理员配置“全部 / 本学院 / 本班级 / 仅本人”的审批数据范围。系统不会根据用户名自动扩大权限；未配置匹配范围时，新申请会安全地停止路由并提示管理员处理。
 
 ### 分别运行
 
