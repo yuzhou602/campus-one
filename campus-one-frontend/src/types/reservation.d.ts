@@ -27,6 +27,9 @@ export interface ResourceReservation {
   purpose: string
   participantCount: number
   status: ReservationStatus
+  approvedBy?: number
+  approvalRemark?: string
+  approvedAt?: string
   createdAt: string
 }
 

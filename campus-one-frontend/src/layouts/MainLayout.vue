@@ -200,7 +200,7 @@ import { isDemoMode } from '@/demo'
 import {
   HomeFilled, Service, Document, Stamp, Calendar, Tools, Flag, Bell,
   ChatDotRound, MagicStick, List, DataAnalysis, Setting, Plus, Edit,
-  SwitchButton,
+  SwitchButton, Tickets, SetUp, Checked,
   Menu,
 } from '@element-plus/icons-vue'
 
@@ -245,6 +245,9 @@ const menuGroups = computed(() => {
       label: '个人中心',
       items: [
         { path: '/application/my', title: '我的申请', icon: Document },
+        { path: '/reservation/my', title: '我的预约', icon: Tickets },
+        { path: '/repair/my', title: '我的报修', icon: Tools },
+        { path: '/repair/assigned', title: '维修工作台', icon: SetUp, roles: ['SERVICE', 'ADMIN', 'SUPER_ADMIN'] },
         { path: '/task', title: '任务中心', icon: List },
       ],
     },
@@ -259,6 +262,7 @@ const menuGroups = computed(() => {
       label: '管理',
       items: [
         { path: '/approval', title: '审批中心', icon: Stamp, roles: ['TEACHER', 'COUNSELOR', 'ADMIN', 'SUPER_ADMIN'] },
+        { path: '/reservation/approvals', title: '预约审核', icon: Checked, roles: ['ADMIN', 'SUPER_ADMIN'] },
         { path: '/analytics', title: '数据中心', icon: DataAnalysis, roles: ['ADMIN', 'SUPER_ADMIN'] },
         { path: '/system', title: '系统管理', icon: Setting, roles: ['SUPER_ADMIN'] },
       ],
@@ -289,7 +293,7 @@ const roleText = computed(() => {
   const m: Record<string, string> = {
     SUPER_ADMIN: '超级管理员', ADMIN: '管理员',
     TEACHER: '教师', COUNSELOR: '职工',
-    STUDENT: '学生',
+    STUDENT: '学生', SERVICE: '服务人员',
   }
   return m[userStore.role] || '成员'
 })

@@ -67,6 +67,18 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '场地详情', hidden: true },
       },
       {
+        path: 'reservation/my',
+        name: 'MyReservations',
+        component: () => import('@/views/reservation/MyReservations.vue'),
+        meta: { title: '我的预约', icon: 'Tickets' },
+      },
+      {
+        path: 'reservation/approvals',
+        name: 'ReservationApprovals',
+        component: () => import('@/views/reservation/ReservationApprovals.vue'),
+        meta: { title: '预约审核', icon: 'Checked', roles: ['ADMIN', 'SUPER_ADMIN'] },
+      },
+      {
         path: 'repair',
         name: 'Repair',
         component: () => import('@/views/repair/RepairList.vue'),
@@ -83,6 +95,12 @@ const routes: RouteRecordRaw[] = [
         name: 'MyRepairs',
         component: () => import('@/views/repair/MyRepairs.vue'),
         meta: { title: '我的报修', hidden: true },
+      },
+      {
+        path: 'repair/assigned',
+        name: 'AssignedRepairs',
+        component: () => import('@/views/repair/AssignedRepairs.vue'),
+        meta: { title: '维修工作台', icon: 'SetUp', roles: ['SERVICE', 'ADMIN', 'SUPER_ADMIN'] },
       },
       {
         path: 'activity',
@@ -160,7 +178,7 @@ const router = createRouter({
   scrollBehavior: () => ({ top: 0 }),
 })
 
-router.beforeEach(async (to, _from, next) => {
+router.beforeEach(async (to) => {
   NProgress.start()
   document.title = `${to.meta.title || ''} - CampusOne`
 
@@ -172,24 +190,24 @@ router.beforeEach(async (to, _from, next) => {
   }
 
   if (to.meta.requiresAuth === false) {
-    next()
-  } else if (!userStore.isLoggedIn) {
-    next('/login')
-  } else {
-    if (to.meta.roles && Array.isArray(to.meta.roles)) {
-      const allowed = (to.meta.roles as string[]).includes(userStore.role)
-      if (allowed) {
-        next()
-      } else {
-        next('/dashboard')
-      }
-    } else {
-      next()
-    }
+    return true
   }
+
+  if (!userStore.isLoggedIn) return '/login'
+
+  if (to.meta.roles && Array.isArray(to.meta.roles)) {
+    const allowed = (to.meta.roles as string[]).includes(userStore.role)
+    if (!allowed) return '/dashboard'
+  }
+
+  return true
 })
 
 router.afterEach(() => {
+  NProgress.done()
+})
+
+router.onError(() => {
   NProgress.done()
 })
 

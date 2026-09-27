@@ -4,8 +4,8 @@ import type { CampusResource, ReservationCreatePayload, ResourceReservation, Tim
 interface PageResult<T> {
   records: T[]
   total: number
-  current: number
-  size: number
+  page: number
+  pageSize: number
 }
 
 interface ResourceQuery {
@@ -24,7 +24,7 @@ export function getResourceById(id: number) {
 }
 
 export function getReservations(params?: any) {
-  return request.get('/reservations/my', { params })
+  return request.get<PageResult<ResourceReservation>>('/reservations/my', { params })
 }
 
 export function getReservationById(id: number) {
@@ -41,4 +41,16 @@ export function cancelReservation(id: number) {
 
 export function getAvailability(resourceId: number, date: string) {
   return request.get<TimeSlot[]>('/reservations/availability', { params: { resourceId, date } })
+}
+
+export function getPendingReservations(params?: { page?: number; pageSize?: number }) {
+  return request.get<PageResult<ResourceReservation>>('/reservations/pending', { params })
+}
+
+export function approveReservation(id: number, comment?: string) {
+  return request.post(`/reservations/${id}/approve`, { comment })
+}
+
+export function rejectReservation(id: number, comment: string) {
+  return request.post(`/reservations/${id}/reject`, { comment })
 }

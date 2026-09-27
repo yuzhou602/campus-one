@@ -130,7 +130,7 @@ async function handleBooking() {
   }
   submitting.value = true
   try {
-    await createReservation({
+    const response = await createReservation({
       resourceId: resource.value!.id,
       reservationDate: selectedDate.value,
       startTime: selectedSlot.value!.startTime,
@@ -138,7 +138,14 @@ async function handleBooking() {
       purpose: bookingForm.purpose.trim(),
       attendeeCount: bookingForm.attendeeCount,
     })
-    ElMessage.success('预约成功！')
+    if (response.data.status === 'PENDING') {
+      ElMessage.success('预约已提交，等待管理员审批')
+    } else {
+      ElMessage.success('预约成功！')
+    }
+    bookingForm.purpose = ''
+    selectedSlot.value = null
+    await loadAvailability()
   } catch (err: any) {
     ElMessage.error(err.message || '预约失败')
   } finally {

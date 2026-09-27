@@ -10,6 +10,8 @@ type DemoUser = {
   roleName: string
   permissions: string[]
   dataScope: string
+  collegeId?: number
+  classId?: number
   email: string
   phone: string
   status: number
@@ -62,9 +64,10 @@ const initialApplications: Array<Record<string, any>> = [
 ]
 
 const initialRepairs: Array<Record<string, any>> = [
-  { id: 1, repairNo: 'FIX-20260920-021', userId: 4, userName: '周同学', title: '宿舍空调无法制冷', location: '学生宿舍 12 号楼 301', category: 'air-conditioner', description: '空调可启动但运行半小时仍无冷风。', contact: '13800000004', availableTime: '工作日 18:00 后', priority: 'NORMAL', urgency: '普通', status: 'PROCESSING', createdAt: '2026-09-20 09:20' },
-  { id: 2, repairNo: 'FIX-20260919-016', userId: 4, userName: '周同学', title: '走廊照明故障', location: '信息楼 3 层东侧', category: 'electric', description: '两盏走廊灯持续闪烁。', contact: '13800000004', availableTime: '全天', priority: 'NORMAL', urgency: '普通', status: 'ASSIGNED', createdAt: '2026-09-19 16:40' },
+  { id: 1, repairNo: 'FIX-20260920-021', userId: 4, userName: '周同学', assignedUserId: 6, title: '宿舍空调无法制冷', location: '学生宿舍 12 号楼 301', category: 'air-conditioner', description: '空调可启动但运行半小时仍无冷风。', contact: '13800000004', availableTime: '工作日 18:00 后', priority: 'NORMAL', urgency: '普通', status: 'PROCESSING', createdAt: '2026-09-20 09:20' },
+  { id: 2, repairNo: 'FIX-20260919-016', userId: 4, userName: '周同学', assignedUserId: 6, title: '走廊照明故障', location: '信息楼 3 层东侧', category: 'electric', description: '两盏走廊灯持续闪烁。', contact: '13800000004', availableTime: '全天', priority: 'NORMAL', urgency: '普通', status: 'ASSIGNED', createdAt: '2026-09-19 16:40' },
   { id: 3, repairNo: 'FIX-20260912-003', userId: 5, userName: '许同学', title: '洗手间水龙头漏水', location: '教学楼 A 2 层', category: 'water', description: '水龙头关闭后仍持续滴水。', contact: '13800000005', availableTime: '工作日白天', priority: 'LOW', urgency: '一般', status: 'RESOLVED', createdAt: '2026-09-12 11:10' },
+  { id: 4, repairNo: 'FIX-20260922-028', userId: 5, userName: '许同学', title: '教室投影仪无信号', location: '教学楼 A 301', category: 'classroom', description: '投影仪开机后持续显示无信号。', contact: '13800000005', availableTime: '工作日白天', priority: 'NORMAL', urgency: '普通', status: 'SUBMITTED', createdAt: '2026-09-22 15:30' },
 ]
 
 const initialReservations: Array<Record<string, any>> = [
@@ -200,11 +203,13 @@ export const demoAdapter: AxiosAdapter = async config => {
       { startTime: '18:00', endTime: '20:00', available: false, reservationId: 100 },
     ]
   } else if (path === '/reservations/my') {
-    result = page(reservations, params)
+    result = page(reservations.filter(item => item.userId === currentUser().id), params)
+  } else if (path === '/reservations/pending') {
+    result = page(reservations.filter(item => item.status === 'PENDING'), params)
   } else if (path === '/reservations' && method === 'post') {
     const resource = resources.find(item => item.id === Number(body.resourceId)) || resources[0]
     const user = currentUser()
-    const item = { id: Date.now(), reservationNo: `RES-DEMO-${reservations.length + 1}`, resourceId: resource.id, resourceName: resource.resourceName, userId: user.id, userName: user.realName, reservationDate: body.reservationDate, startTime: body.startTime, endTime: body.endTime, purpose: body.purpose, participantCount: body.attendeeCount, status: 'CONFIRMED', createdAt: new Date().toISOString() }
+    const item = { id: Date.now(), reservationNo: `RES-DEMO-${reservations.length + 1}`, resourceId: resource.id, resourceName: resource.resourceName, userId: user.id, userName: user.realName, reservationDate: body.reservationDate, startTime: body.startTime, endTime: body.endTime, purpose: body.purpose, participantCount: body.attendeeCount, status: resource.needApproval ? 'PENDING' : 'CONFIRMED', createdAt: new Date().toISOString() }
     reservations.unshift(item)
     saveState('reservations', reservations)
     result = item
@@ -213,10 +218,26 @@ export const demoAdapter: AxiosAdapter = async config => {
     if (item) item.status = 'CANCELLED'
     saveState('reservations', reservations)
     result = item
+  } else if (/^\/reservations\/\d+\/(approve|reject)$/.test(path)) {
+    const item = reservations.find(entry => entry.id === detailId(path))
+    if (item) {
+      item.status = path.endsWith('/approve') ? 'CONFIRMED' : 'REJECTED'
+      item.approvedBy = currentUser().id
+      item.approvalRemark = body.comment
+      item.approvedAt = new Date().toISOString()
+    }
+    saveState('reservations', reservations)
+    result = item
   } else if (/^\/reservations\/\d+$/.test(path)) {
     result = reservations.find(item => item.id === detailId(path)) || reservations[0]
-  } else if (path === '/repairs/my' || path === '/repairs/assigned') {
-    result = page(repairs, params)
+  } else if (path === '/repairs/my') {
+    result = page(repairs.filter(item => item.userId === currentUser().id), params)
+  } else if (path === '/repairs/assigned') {
+    result = page(repairs.filter(item => item.assignedUserId === currentUser().id), params)
+  } else if (path === '/repairs/unassigned') {
+    result = page(repairs.filter(item => item.status === 'SUBMITTED' && !item.assignedUserId), params)
+  } else if (path === '/repairs/technicians') {
+    result = users.filter(item => item.role === 'SERVICE' && item.status === 1).map(item => ({ id: item.id, username: item.username, realName: item.realName }))
   } else if (path === '/repairs' && method === 'post') {
     const user = currentUser()
     const item = { id: Date.now(), repairNo: `FIX-DEMO-${repairs.length + 1}`, userId: user.id, userName: user.realName, title: body.description?.slice(0, 18) || '新报修工单', location: body.location, category: body.category, description: body.description, contact: body.contact, availableTime: body.availableTime, priority: 'NORMAL', urgency: '普通', status: 'SUBMITTED', createdAt: new Date().toISOString() }
@@ -228,8 +249,16 @@ export const demoAdapter: AxiosAdapter = async config => {
     if (item) item.status = body.status
     saveState('repairs', repairs)
     result = item
+  } else if (/^\/repairs\/\d+\/accept$/.test(path)) {
+    const item = repairs.find(entry => entry.id === detailId(path))
+    if (item) item.status = 'ACCEPTED'
+    saveState('repairs', repairs)
+    result = item
   } else if (/^\/repairs\/\d+\/assign$/.test(path)) {
-    result = true
+    const item = repairs.find(entry => entry.id === detailId(path))
+    if (item) { item.assignedUserId = body.userId; item.status = 'ASSIGNED' }
+    saveState('repairs', repairs)
+    result = item
   } else if (/^\/repairs\/\d+$/.test(path)) {
     result = repairs.find(item => item.id === detailId(path)) || repairs[0]
   } else if (path === '/activities/registrations/my') {
@@ -275,14 +304,27 @@ export const demoAdapter: AxiosAdapter = async config => {
     result = { totalReservations: 2386, todayReservations: 74, avgDaily: 63 }
   } else if (path === '/analytics/repair') {
     result = { accepted: 21, submitted: 13, resolved: 86 }
+  } else if (/^\/users\/\d+\/data-scope$/.test(path) && method === 'put') {
+    const user = users.find(item => item.id === detailId(path))
+    if (user) {
+      user.dataScope = String(body.dataScope || 'SELF')
+      user.collegeId = body.collegeId
+      user.classId = body.classId
+    }
+    result = null
   } else if (path === '/users') {
     const keyword = String(params.keyword || '').toLowerCase()
     const filtered = keyword ? users.filter(item => `${item.username}${item.realName}`.toLowerCase().includes(keyword)) : users
     result = page(filtered, params)
   } else if (path === '/system/info') {
-    result = { name: 'CampusOne 在线演示', version: '1.0.0-demo', javaVersion: 'Static Demo', osName: 'GitHub Pages' }
+    result = { name: 'CampusOne 在线演示', version: '1.1.0-demo', javaVersion: 'Static Demo', osName: 'GitHub Pages' }
   } else if (path === '/tasks/my') {
-    result = { pendingApprovals: page(applications.filter(item => item.status === 'PENDING'), params), myReservations: page(reservations, params), myRepairs: page(repairs.filter(item => item.status !== 'RESOLVED'), params) }
+    const user = currentUser()
+    result = {
+      pendingApprovals: page(applications.filter(item => item.status === 'PENDING'), params),
+      myReservations: page(reservations.filter(item => item.userId === user.id), params),
+      myRepairs: page(repairs.filter(item => (item.userId === user.id || item.assignedUserId === user.id) && !['RESOLVED', 'CLOSED'].includes(item.status)), params),
+    }
   } else if (path === '/ai/quick-actions') {
     result = ['查课表', '找教室', '查申请', '校园活动']
   } else if (path === '/ai/knowledge') {
