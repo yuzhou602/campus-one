@@ -6,6 +6,7 @@ import com.campusone.common.response.PageResult;
 import com.campusone.repair.dto.RepairDTO;
 import com.campusone.repair.entity.RepairOrder;
 import com.campusone.repair.service.RepairService;
+import com.campusone.repair.vo.RepairTechnicianVO;
 import com.campusone.security.UserContext;
 import com.campusone.security.RequiresRole;
 import io.swagger.v3.oas.annotations.Operation;
@@ -13,6 +14,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @Tag(name = "校园报修")
 @RestController
@@ -56,7 +59,7 @@ public class RepairController {
             throw new com.campusone.common.exception.BusinessException("工单不存在");
         }
         String role = UserContext.getCurrentUserRole();
-        boolean privileged = "ADMIN".equals(role) || "SUPER_ADMIN".equals(role) || "SERVICE".equals(role);
+        boolean privileged = "ADMIN".equals(role) || "SUPER_ADMIN".equals(role);
         boolean owner = userId.equals(order.getUserId());
         boolean assignee = userId.equals(order.getAssignedUserId());
         if (!privileged && !owner && !assignee) {
@@ -101,5 +104,21 @@ public class RepairController {
         Long userId = UserContext.getCurrentUserId();
         IPage<RepairOrder> result = repairService.getAssignedRepairs(userId, page, pageSize);
         return ApiResponse.success(PageResult.of(result));
+    }
+
+    @Operation(summary = "待分派工单")
+    @GetMapping("/unassigned")
+    @RequiresRole({"ADMIN", "SUPER_ADMIN"})
+    public ApiResponse<PageResult<RepairOrder>> unassignedRepairs(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize) {
+        return ApiResponse.success(PageResult.of(repairService.getUnassignedRepairs(page, pageSize)));
+    }
+
+    @Operation(summary = "可分派维修人员")
+    @GetMapping("/technicians")
+    @RequiresRole({"ADMIN", "SUPER_ADMIN"})
+    public ApiResponse<List<RepairTechnicianVO>> technicians() {
+        return ApiResponse.success(repairService.listActiveTechnicians());
     }
 }

@@ -71,7 +71,10 @@ public class TaskController {
         tasks.put("myReservations", PageResult.of(reservations));
 
         LambdaQueryWrapper<RepairOrder> repairWrapper = new LambdaQueryWrapper<>();
-        repairWrapper.eq(RepairOrder::getUserId, userId);
+        repairWrapper.and(wrapper -> wrapper
+                .eq(RepairOrder::getUserId, userId)
+                .or()
+                .eq(RepairOrder::getAssignedUserId, userId));
         repairWrapper.notIn(RepairOrder::getStatus, "RESOLVED", "CLOSED");
         repairWrapper.orderByDesc(RepairOrder::getCreatedAt);
         IPage<RepairOrder> repairs = repairOrderMapper.selectPage(

@@ -3,9 +3,11 @@ package com.campusone.reservation.controller;
 import com.campusone.common.response.ApiResponse;
 import com.campusone.common.response.PageResult;
 import com.campusone.reservation.dto.ReservationDTO;
+import com.campusone.reservation.dto.ReservationDecisionDTO;
 import com.campusone.reservation.entity.ResourceReservation;
 import com.campusone.reservation.service.ReservationService;
 import com.campusone.security.UserContext;
+import com.campusone.security.RequiresRole;
 import com.campusone.common.exception.BusinessException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -42,6 +44,34 @@ public class ReservationController {
             @RequestParam(defaultValue = "20") int pageSize) {
         Long userId = UserContext.getCurrentUserId();
         return ApiResponse.success(PageResult.of(reservationService.getMyReservations(userId, page, pageSize)));
+    }
+
+    @Operation(summary = "待审核预约")
+    @GetMapping("/pending")
+    @RequiresRole({"ADMIN", "SUPER_ADMIN"})
+    public ApiResponse<PageResult<ResourceReservation>> pendingReservations(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize) {
+        return ApiResponse.success(PageResult.of(reservationService.getPendingReservations(
+                UserContext.getCurrentUserId(), page, pageSize)));
+    }
+
+    @Operation(summary = "通过预约")
+    @PostMapping("/{id}/approve")
+    @RequiresRole({"ADMIN", "SUPER_ADMIN"})
+    public ApiResponse<Void> approve(@PathVariable Long id,
+                                     @Valid @RequestBody ReservationDecisionDTO decision) {
+        reservationService.reviewReservation(id, true, decision.getComment(), UserContext.getCurrentUserId());
+        return ApiResponse.success();
+    }
+
+    @Operation(summary = "驳回预约")
+    @PostMapping("/{id}/reject")
+    @RequiresRole({"ADMIN", "SUPER_ADMIN"})
+    public ApiResponse<Void> reject(@PathVariable Long id,
+                                    @Valid @RequestBody ReservationDecisionDTO decision) {
+        reservationService.reviewReservation(id, false, decision.getComment(), UserContext.getCurrentUserId());
+        return ApiResponse.success();
     }
 
     @Operation(summary = "取消预约")

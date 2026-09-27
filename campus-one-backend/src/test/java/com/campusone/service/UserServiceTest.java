@@ -1,11 +1,13 @@
 package com.campusone.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.campusone.common.exception.BusinessException;
 import com.campusone.security.JwtUtil;
 import com.campusone.security.TokenBlacklist;
 import com.campusone.security.TokenBlacklistMapper;
 import com.campusone.system.user.dto.LoginRequest;
+import com.campusone.system.user.dto.UserScopeUpdateDTO;
 import com.campusone.system.user.entity.User;
 import com.campusone.system.user.mapper.UserMapper;
 import com.campusone.system.user.service.impl.UserServiceImpl;
@@ -249,5 +251,34 @@ class UserServiceTest {
         when(userMapper.selectById(999L)).thenReturn(null);
 
         assertThrows(BusinessException.class, () -> userService.refresh("refresh-token"));
+    }
+
+    @Test
+    @DisplayName("配置审批范围 - 学院范围必须包含学院")
+    void updateDataScope_requiresCollege() {
+        when(userMapper.selectById(1L)).thenReturn(testUser);
+        UserScopeUpdateDTO request = new UserScopeUpdateDTO();
+        request.setDataScope("COLLEGE");
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> userService.updateDataScope(1L, request));
+
+        assertEquals("学院范围必须选择学院", ex.getMessage());
+        verify(userMapper, never()).update(isNull(), any(UpdateWrapper.class));
+    }
+
+    @Test
+    @DisplayName("配置审批范围 - 保存学院范围")
+    void updateDataScope_savesCollegeScope() {
+        when(userMapper.selectById(1L)).thenReturn(testUser);
+        when(userMapper.update(isNull(), any(UpdateWrapper.class))).thenReturn(1);
+        UserScopeUpdateDTO request = new UserScopeUpdateDTO();
+        request.setDataScope("COLLEGE");
+        request.setCollegeId(8L);
+
+        userService.updateDataScope(1L, request);
+
+        assertEquals("COLLEGE", testUser.getDataScope());
+        assertEquals(8L, testUser.getCollegeId());
     }
 }

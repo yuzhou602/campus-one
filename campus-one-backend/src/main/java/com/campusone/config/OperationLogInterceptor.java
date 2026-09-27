@@ -2,6 +2,7 @@ package com.campusone.config;
 
 import com.campusone.system.log.entity.OperationLog;
 import com.campusone.system.log.mapper.OperationLogMapper;
+import com.campusone.security.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -24,8 +25,10 @@ public class OperationLogInterceptor implements HandlerInterceptor {
 
     @Override
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
-        Long duration = System.currentTimeMillis() - startTime.get();
+        Long startedAt = startTime.get();
         startTime.remove();
+        if (startedAt == null) return;
+        Long duration = System.currentTimeMillis() - startedAt;
 
         try {
             String method = request.getMethod();
@@ -35,6 +38,7 @@ public class OperationLogInterceptor implements HandlerInterceptor {
             }
 
             OperationLog opLog = new OperationLog();
+            opLog.setUserId(resolveCurrentUserId());
             opLog.setMethod(method);
             opLog.setUrl(url);
             opLog.setIp(getClientIp(request));
@@ -43,7 +47,7 @@ public class OperationLogInterceptor implements HandlerInterceptor {
             opLog.setCreatedAt(java.time.LocalDateTime.now());
 
             String[] parts = url.split("/");
-            if (parts.length > 4) {
+            if (parts.length > 3) {
                 opLog.setModule(parts[3]);
             }
             opLog.setAction(method);
@@ -55,10 +59,16 @@ public class OperationLogInterceptor implements HandlerInterceptor {
     }
 
     private String getClientIp(HttpServletRequest request) {
-        String xff = request.getHeader("X-Forwarded-For");
-        if (xff != null && !xff.isEmpty()) {
-            return xff.split(",")[0].trim();
-        }
+        // Forwarded headers must be normalized by a trusted proxy/container first;
+        // never trust a client-supplied X-Forwarded-For value directly here.
         return request.getRemoteAddr();
+    }
+
+    private Long resolveCurrentUserId() {
+        try {
+            return UserContext.getCurrentUserId();
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 }

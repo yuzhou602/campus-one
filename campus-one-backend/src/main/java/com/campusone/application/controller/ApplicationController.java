@@ -71,6 +71,7 @@ public class ApplicationController {
     @PostMapping("/approvals/{taskId}/approve")
     public ApiResponse<Void> approve(@PathVariable Long taskId, @RequestBody ApprovalAction action) {
         Long userId = UserContext.getCurrentUserId();
+        action.setAction("APPROVE");
         approvalService.processApproval(taskId, userId, action);
         return ApiResponse.success();
     }

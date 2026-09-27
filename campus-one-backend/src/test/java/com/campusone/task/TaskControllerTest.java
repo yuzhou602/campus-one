@@ -2,6 +2,8 @@ package com.campusone.task;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.campusone.application.entity.ApprovalRecord;
 import com.campusone.application.entity.ServiceApplication;
 import com.campusone.application.mapper.ApprovalRecordMapper;
@@ -14,6 +16,8 @@ import com.campusone.security.UserContext;
 import com.campusone.task.controller.TaskController;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
+import org.mockito.ArgumentCaptor;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
 
 import java.util.List;
 
@@ -76,5 +80,34 @@ class TaskControllerTest {
         }
 
         verify(applicationMapper, never()).selectPage(any(), any());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void repairTasksIncludeReportedAndAssignedOrders() {
+        ServiceApplicationMapper applicationMapper = mock(ServiceApplicationMapper.class);
+        ApprovalRecordMapper approvalRecordMapper = mock(ApprovalRecordMapper.class);
+        RepairOrderMapper repairMapper = mock(RepairOrderMapper.class);
+        ResourceReservationMapper reservationMapper = mock(ResourceReservationMapper.class);
+        TaskController controller = new TaskController(
+                applicationMapper, approvalRecordMapper, repairMapper, reservationMapper);
+        when(approvalRecordMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+        when(reservationMapper.selectPage(any(), any(LambdaQueryWrapper.class)))
+                .thenReturn(new Page<ResourceReservation>(1, 10));
+        when(repairMapper.selectPage(any(), any(LambdaQueryWrapper.class)))
+                .thenReturn(new Page<RepairOrder>(1, 10));
+
+        try (MockedStatic<UserContext> context = mockStatic(UserContext.class)) {
+            context.when(UserContext::getCurrentUserId).thenReturn(7L);
+            controller.myTasks(1, 10);
+        }
+
+        ArgumentCaptor<LambdaQueryWrapper<RepairOrder>> captor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+        verify(repairMapper).selectPage(any(), captor.capture());
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), "test"), RepairOrder.class);
+        String sql = captor.getValue().getSqlSegment();
+        assertTrue(sql.contains("user_id"));
+        assertTrue(sql.contains("assigned_user_id"));
+        assertTrue(sql.contains("OR"));
     }
 }

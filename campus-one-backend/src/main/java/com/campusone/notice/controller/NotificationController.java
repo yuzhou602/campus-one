@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -89,7 +90,13 @@ public class NotificationController {
     @Operation(summary = "删除通知")
     @DeleteMapping("/{id}")
     @RequiresRole({"COUNSELOR", "ADMIN", "SUPER_ADMIN"})
+    @Transactional
     public ApiResponse<Void> delete(@PathVariable Long id) {
+        if (notificationMapper.selectById(id) == null) {
+            throw new BusinessException("通知不存在");
+        }
+        userNotificationMapper.delete(new LambdaQueryWrapper<UserNotification>()
+                .eq(UserNotification::getNotificationId, id));
         notificationMapper.deleteById(id);
         return ApiResponse.success();
     }
