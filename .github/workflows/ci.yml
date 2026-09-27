@@ -27,7 +27,7 @@ jobs:
           cache: maven
 
       - name: Run backend tests
-        run: ./mvnw test
+        run: bash ./mvnw test
 
   frontend-build:
     runs-on: ubuntu-latest
