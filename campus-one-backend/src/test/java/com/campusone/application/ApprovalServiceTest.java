@@ -1,6 +1,8 @@
 package com.campusone.application;
 
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.campusone.application.dto.ApprovalAction;
 import com.campusone.application.dto.ApplicationDTO;
 import com.campusone.application.entity.ApprovalRecord;
@@ -47,6 +49,7 @@ class ApprovalServiceTest {
         testApp = new ServiceApplication();
         testApp.setId(1L);
         testApp.setApplicantId(100L);
+        testApp.setServiceId(1L);
         testApp.setStatus("PENDING");
 
         testRecord = new ApprovalRecord();
@@ -86,7 +89,7 @@ class ApprovalServiceTest {
         when(userMapper.selectList(any())).thenReturn(List.of(counselor), List.of(admin));
 
         ApplicationDTO dto = new ApplicationDTO();
-        dto.setServiceId(10L);
+        dto.setServiceId(2L);
         dto.setFormData("{}");
         ServiceApplication result = approvalService.submitApplication(dto, 100L);
 
@@ -94,6 +97,38 @@ class ApprovalServiceTest {
         assertEquals("PENDING", result.getStatus());
         assertTrue(result.getApplicationNo().startsWith("APP"));
         verify(approvalRecordMapper, times(2)).insert(any(ApprovalRecord.class));
+    }
+
+    @Test
+    @DisplayName("提交申请 - 未知服务事项必须拒绝")
+    void testSubmitApplication_RejectsUnknownService() {
+        ApplicationDTO dto = new ApplicationDTO();
+        dto.setServiceId(999L);
+        dto.setFormData("{}");
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> approvalService.submitApplication(dto, 100L));
+
+        assertEquals("服务事项不存在或已停用", ex.getMessage());
+        verify(applicationMapper, never()).insert(any(ServiceApplication.class));
+    }
+
+    @Test
+    @DisplayName("我的申请 - 返回分页契约并补充服务与申请人名称")
+    void testGetMyApprovals_ReturnsEnrichedPage() {
+        Page<ServiceApplication> page = new Page<>(1, 20);
+        page.setRecords(List.of(testApp));
+        User applicant = user(100L, "STUDENT", "张同学");
+        applicant.setSchoolId(20260001L);
+        when(applicationMapper.selectPage(any(Page.class), any())).thenReturn(page);
+        when(userMapper.selectBatchIds(anyCollection())).thenReturn(List.of(applicant));
+
+        IPage<ServiceApplication> result = approvalService.getMyApprovals(100L, 1, 20, null);
+
+        assertEquals(1, result.getRecords().size());
+        assertEquals("请假申请", result.getRecords().get(0).getServiceName());
+        assertEquals("张同学", result.getRecords().get(0).getApplicantName());
+        assertEquals(20260001L, result.getRecords().get(0).getStudentNo());
     }
 
     @Test
@@ -135,6 +170,7 @@ class ApprovalServiceTest {
 
         assertEquals("APPROVED", testRecord.getAction());
         assertEquals("APPROVED", testApp.getStatus());
+        assertEquals("已归档", testApp.getCurrentNode());
         assertNotNull(testApp.getCompletedAt());
     }
 
@@ -176,6 +212,8 @@ class ApprovalServiceTest {
 
         assertEquals("REJECTED", testRecord.getAction());
         assertEquals("REJECTED", testApp.getStatus());
+        assertEquals("已驳回", testApp.getCurrentNode());
+        assertNotNull(testApp.getCompletedAt());
         verify(approvalRecordMapper).update(any(ApprovalRecord.class), any());
     }
 

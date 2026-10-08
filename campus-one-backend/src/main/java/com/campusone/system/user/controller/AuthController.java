@@ -66,14 +66,9 @@ public class AuthController {
 
     @Operation(summary = "获取当前用户信息")
     @GetMapping("/me")
-    public ApiResponse<User> getCurrentUser() {
+    public ApiResponse<UserVO> getCurrentUser() {
         Long userId = UserContext.getCurrentUserId();
-        User user = userService.getById(userId);
-        if (user == null) {
-            throw new BusinessException("用户不存在");
-        }
-        user.setPassword(null);
-        return ApiResponse.success(user);
+        return ApiResponse.success(userService.getCurrentUser(userId));
     }
 
     @Operation(summary = "退出登录")

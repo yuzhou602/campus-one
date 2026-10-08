@@ -28,12 +28,12 @@ const users: DemoUser[] = [
 ]
 
 const services = [
-  { id: 1, name: '请假申请', description: '课程、实习与日常请假在线登记', audience: '全体学生', duration: '2 个工作日', approvalFlow: '辅导员 → 学院' },
-  { id: 2, name: '学生证明申请', description: '在读证明、成绩证明等材料申请', audience: '全体学生', duration: '1 个工作日', approvalFlow: '教务审核' },
-  { id: 3, name: '场地特殊使用', description: '常规预约时段以外的场地使用申请', audience: '师生', duration: '3 个工作日', approvalFlow: '场馆 → 保卫处' },
-  { id: 4, name: '活动场地申请', description: '社团和班级活动场地备案', audience: '学生组织', duration: '3 个工作日', approvalFlow: '指导教师 → 团委' },
-  { id: 5, name: '物品借用申请', description: '公共器材和活动物资借用', audience: '师生', duration: '1 个工作日', approvalFlow: '资产管理员' },
-  { id: 6, name: '宿舍事务申请', description: '调宿、晚归等宿舍事务登记', audience: '住宿学生', duration: '2 个工作日', approvalFlow: '辅导员 → 宿管' },
+  { id: 1, name: '请假申请', description: '课程、实习与日常请假在线登记', icon: 'Calendar', audience: '全体学生', duration: '2 个工作日', approvalFlow: '教师 → 管理员', reviewRole: 'TEACHER' },
+  { id: 2, name: '学生证明申请', description: '在读证明、成绩证明等材料申请', icon: 'Document', audience: '全体学生', duration: '1 个工作日', approvalFlow: '职工 → 管理员', reviewRole: 'COUNSELOR' },
+  { id: 3, name: '场地特殊使用', description: '常规预约时段以外的场地使用申请', icon: 'Location', audience: '师生', duration: '3 个工作日', approvalFlow: '职工 → 管理员', reviewRole: 'COUNSELOR' },
+  { id: 4, name: '活动场地申请', description: '社团和班级活动场地备案', icon: 'Flag', audience: '学生组织', duration: '3 个工作日', approvalFlow: '职工 → 管理员', reviewRole: 'COUNSELOR' },
+  { id: 5, name: '物品借用申请', description: '公共器材和活动物资借用', icon: 'Box', audience: '师生', duration: '1 个工作日', approvalFlow: '职工 → 管理员', reviewRole: 'COUNSELOR' },
+  { id: 6, name: '宿舍事务申请', description: '调宿、晚归等宿舍事务登记', icon: 'House', audience: '住宿学生', duration: '2 个工作日', approvalFlow: '职工 → 管理员', reviewRole: 'COUNSELOR' },
 ]
 
 const resources = [
@@ -317,7 +317,7 @@ export const demoAdapter: AxiosAdapter = async config => {
     const filtered = keyword ? users.filter(item => `${item.username}${item.realName}`.toLowerCase().includes(keyword)) : users
     result = page(filtered, params)
   } else if (path === '/system/info') {
-    result = { name: 'CampusOne 在线演示', version: '1.1.0-demo', javaVersion: 'Static Demo', osName: 'GitHub Pages' }
+    result = { name: 'CampusOne 在线演示', version: '1.2.0-demo', javaVersion: 'Static Demo', osName: 'GitHub Pages' }
   } else if (path === '/tasks/my') {
     const user = currentUser()
     result = {

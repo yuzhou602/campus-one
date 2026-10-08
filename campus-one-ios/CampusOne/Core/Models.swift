@@ -38,7 +38,8 @@ final class AuthStore {
         case "SUPER_ADMIN": return "超级管理员"
         case "ADMIN": return "管理员"
         case "TEACHER": return "教师"
-        case "COUNSELOR": return "职工"
+        case "COUNSELOR": return "辅导员"
+        case "SERVICE": return "服务人员"
         case "STUDENT": return "学生"
         default: return "成员"
         }

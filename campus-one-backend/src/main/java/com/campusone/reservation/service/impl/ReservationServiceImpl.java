@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.campusone.common.exception.BusinessException;
+import com.campusone.common.util.BusinessNumberGenerator;
 import com.campusone.reservation.entity.CampusResource;
 import com.campusone.reservation.entity.ResourceReservation;
 import com.campusone.reservation.mapper.CampusResourceMapper;
@@ -23,7 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -136,9 +136,7 @@ public class ReservationServiceImpl extends ServiceImpl<ResourceReservationMappe
             if (exists) {
                 throw new BusinessException("该时段已被预约");
             }
-            String no = "RS" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS"))
-                    + UUID.randomUUID().toString().substring(0, 4).toUpperCase();
-            reservation.setReservationNo(no);
+            reservation.setReservationNo(BusinessNumberGenerator.generate("RS"));
             reservation.setUserId(userId);
             reservation.setStatus(Boolean.TRUE.equals(resource.getNeedApproval()) ? "PENDING" : "CONFIRMED");
             this.save(reservation);

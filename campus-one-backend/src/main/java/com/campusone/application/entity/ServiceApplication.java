@@ -11,7 +11,13 @@ public class ServiceApplication {
     private Long id;
     private String applicationNo;
     private Long serviceId;
+    @TableField(exist = false)
+    private String serviceName;
     private Long applicantId;
+    @TableField(exist = false)
+    private String applicantName;
+    @TableField(exist = false)
+    private Long studentNo;
     private String formDataJson;
     private String status;
     private String processInstanceId;

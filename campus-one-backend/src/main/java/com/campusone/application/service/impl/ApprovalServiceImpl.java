@@ -13,6 +13,7 @@ import com.campusone.application.mapper.ServiceApplicationMapper;
 import com.campusone.application.service.ApprovalService;
 import com.campusone.application.support.ServiceCatalogRegistry;
 import com.campusone.common.exception.BusinessException;
+import com.campusone.common.util.BusinessNumberGenerator;
 import com.campusone.system.user.entity.User;
 import com.campusone.system.user.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -32,12 +38,17 @@ public class ApprovalServiceImpl implements ApprovalService {
     @Override
     @Transactional
     public ServiceApplication submitApplication(ApplicationDTO dto, Long userId) {
+        try {
+            ServiceCatalogRegistry.require(dto.getServiceId());
+        } catch (IllegalArgumentException exception) {
+            throw new BusinessException(exception.getMessage());
+        }
         ServiceApplication app = new ServiceApplication();
         app.setApplicantId(userId);
         app.setServiceId(dto.getServiceId());
         app.setFormDataJson(dto.getFormData());
         app.setStatus("PENDING");
-        app.setApplicationNo("APP" + System.currentTimeMillis());
+        app.setApplicationNo(BusinessNumberGenerator.generate("APP"));
         app.setSubmittedAt(LocalDateTime.now());
         applicationMapper.insert(app);
         initApprovalSteps(app.getId());
@@ -45,14 +56,22 @@ public class ApprovalServiceImpl implements ApprovalService {
     }
 
     @Override
-    public List<ServiceApplication> getMyApprovals(Long userId, String status) {
+    public IPage<ServiceApplication> getMyApprovals(Long userId, int page, int pageSize, String status) {
         LambdaQueryWrapper<ServiceApplication> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ServiceApplication::getApplicantId, userId);
         if (status != null && !status.isEmpty()) {
             wrapper.eq(ServiceApplication::getStatus, status);
         }
         wrapper.orderByDesc(ServiceApplication::getCreatedAt);
-        return applicationMapper.selectList(wrapper);
+        return enrichApplications(applicationMapper.selectPage(new Page<>(page, pageSize), wrapper));
+    }
+
+    @Override
+    public ServiceApplication getApplication(Long applicationId) {
+        ServiceApplication application = applicationMapper.selectById(applicationId);
+        if (application == null) return null;
+        enrichApplications(List.of(application));
+        return application;
     }
 
     @Override
@@ -67,7 +86,7 @@ public class ApprovalServiceImpl implements ApprovalService {
         LambdaQueryWrapper<ServiceApplication> wrapper = new LambdaQueryWrapper<>();
         wrapper.in(ServiceApplication::getId, appIds)
                .orderByDesc(ServiceApplication::getCreatedAt);
-        return applicationMapper.selectPage(new Page<>(page, pageSize), wrapper);
+        return enrichApplications(applicationMapper.selectPage(new Page<>(page, pageSize), wrapper));
     }
 
     @Override
@@ -80,7 +99,7 @@ public class ApprovalServiceImpl implements ApprovalService {
         if (appIds.isEmpty()) return new Page<>(page, pageSize);
         LambdaQueryWrapper<ServiceApplication> appWrapper = new LambdaQueryWrapper<>();
         appWrapper.in(ServiceApplication::getId, appIds).orderByDesc(ServiceApplication::getCreatedAt);
-        return applicationMapper.selectPage(new Page<>(page, pageSize), appWrapper);
+        return enrichApplications(applicationMapper.selectPage(new Page<>(page, pageSize), appWrapper));
     }
 
     @Override
@@ -197,6 +216,8 @@ public class ApprovalServiceImpl implements ApprovalService {
 
         if ("REJECT".equals(action.getAction())) {
             app.setStatus("REJECTED");
+            app.setCurrentNode("已驳回");
+            app.setCompletedAt(LocalDateTime.now());
             applicationMapper.updateById(app);
             markRemainingAsSkipped(applicationId, record.getId());
             return;
@@ -219,6 +240,7 @@ public class ApprovalServiceImpl implements ApprovalService {
             applicationMapper.updateById(app);
         } else {
             app.setStatus("APPROVED");
+            app.setCurrentNode("已归档");
             app.setCompletedAt(LocalDateTime.now());
             applicationMapper.updateById(app);
         }
@@ -333,5 +355,33 @@ public class ApprovalServiceImpl implements ApprovalService {
         if (updatedRows != 1) {
             throw new BusinessException(409, "审批状态已变化，请刷新后重试");
         }
+    }
+
+    private IPage<ServiceApplication> enrichApplications(IPage<ServiceApplication> page) {
+        enrichApplications(page.getRecords());
+        return page;
+    }
+
+    private void enrichApplications(List<ServiceApplication> applications) {
+        if (applications == null || applications.isEmpty()) return;
+        Set<Long> applicantIds = applications.stream()
+                .map(ServiceApplication::getApplicantId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, User> applicants = applicantIds.isEmpty() ? Map.of()
+                : userMapper.selectBatchIds(applicantIds).stream()
+                .collect(Collectors.toMap(User::getId, Function.identity()));
+
+        applications.forEach(application -> {
+            ServiceCatalogRegistry.SERVICES.stream()
+                    .filter(service -> service.id() == application.getServiceId())
+                    .findFirst()
+                    .ifPresent(service -> application.setServiceName(service.name()));
+            User applicant = applicants.get(application.getApplicantId());
+            if (applicant != null) {
+                application.setApplicantName(label(applicant));
+                application.setStudentNo(applicant.getSchoolId());
+            }
+        });
     }
 }

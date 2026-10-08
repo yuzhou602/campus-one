@@ -2,7 +2,18 @@
 
 CampusOne 是一个智慧校园综合服务项目，包含 Vue 3 Web 前端、Spring Boot 后端和 iOS 客户端。当前仓库同时提供一个可直接部署到 GitHub Pages 的纯前端在线演示版，方便其他人无需安装数据库或后端即可浏览和操作界面。
 
-当前版本：**v1.1.0**。版本变化见 [CHANGELOG.md](CHANGELOG.md)。
+当前版本：**v1.2.0**。版本变化见 [CHANGELOG.md](CHANGELOG.md)。
+
+## 系统设计
+
+CampusOne 采用“多端客户端 + 模块化单体后端 + MySQL/Redis”的结构。Web 与 iOS 共用 REST API；申请审批、场地预约、校园报修、活动和通知分别保持清晰的业务边界。当前审批采用两级轻量状态机，服务目录使用稳定 ID，并由数据库迁移保证各环境一致。
+
+- [系统总体设计](docs/SYSTEM_DESIGN.md)：产品边界、角色、架构决策与演进路线
+- [业务流程与状态机](docs/BUSINESS_WORKFLOWS.md)：申请、预约、报修、活动和认证流程
+- [API 与数据模型](docs/API_AND_DATA_MODEL.md)：接口契约、分页规范与核心数据关系
+- [开发与部署指南](docs/DEVELOPMENT_AND_DEPLOYMENT.md)：演示、联调、测试和生产发布
+
+文档只描述仓库中已经实现或明确标注为规划中的能力；GitHub Pages 是公开演示环境，真实多人业务需要独立部署后端和基础设施。
 
 ## 项目界面
 

@@ -13,6 +13,7 @@ import com.campusone.security.UserContext;
 import com.campusone.common.exception.BusinessException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,23 +29,26 @@ public class ApplicationController {
 
     @Operation(summary = "提交申请")
     @PostMapping
-    public ApiResponse<ServiceApplication> submit(@RequestBody ApplicationDTO dto) {
+    public ApiResponse<ServiceApplication> submit(@Valid @RequestBody ApplicationDTO dto) {
         Long userId = UserContext.getCurrentUserId();
         return ApiResponse.success(approvalService.submitApplication(dto, userId));
     }
 
     @Operation(summary = "我的申请")
     @GetMapping("/my")
-    public ApiResponse<List<ServiceApplication>> myApplications(
+    public ApiResponse<PageResult<ServiceApplication>> myApplications(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize,
             @RequestParam(required = false) String status) {
         Long userId = UserContext.getCurrentUserId();
-        return ApiResponse.success(approvalService.getMyApprovals(userId, status));
+        return ApiResponse.success(PageResult.of(
+                approvalService.getMyApprovals(userId, page, pageSize, status)));
     }
 
     @Operation(summary = "申请详情")
     @GetMapping("/{id}")
     public ApiResponse<ServiceApplication> getById(@PathVariable Long id) {
-        ServiceApplication application = applicationMapper.selectById(id);
+        ServiceApplication application = approvalService.getApplication(id);
         authorizeAccess(application);
         return ApiResponse.success(application);
     }

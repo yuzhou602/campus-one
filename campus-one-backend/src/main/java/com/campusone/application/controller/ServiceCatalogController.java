@@ -19,7 +19,8 @@ public class ServiceCatalogController {
     public ApiResponse<List<Map<String, Object>>> list() {
         return ApiResponse.success(ServiceCatalogRegistry.SERVICES.stream().map(s ->
             Map.of("id", (Object) s.id(), "name", s.name(), "description", s.description(),
-                   "icon", s.icon(), "reviewRole", s.reviewRole())
+                   "icon", s.icon(), "audience", s.audience(), "duration", s.duration(),
+                   "approvalFlow", s.approvalFlow(), "reviewRole", s.reviewRole())
         ).toList());
     }
 }

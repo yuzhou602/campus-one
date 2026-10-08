@@ -114,11 +114,12 @@ import {
   getPendingApprovals, getProcessedApprovals, getMyApplications,
   getPendingApprovalsCount, approveTask, rejectTask, rollbackTask,
 } from '@/api/application'
+import type { ServiceApplication } from '@/types/application'
 
 const activeTab = ref<'pending' | 'approved' | 'mine'>('pending')
-const pendingApprovals = ref<any[]>([])
-const processedApprovals = ref<any[]>([])
-const myApprovals = ref<any[]>([])
+const pendingApprovals = ref<ServiceApplication[]>([])
+const processedApprovals = ref<ServiceApplication[]>([])
+const myApprovals = ref<ServiceApplication[]>([])
 const pendingCount = ref(0)
 const loading = ref(false)
 
@@ -127,7 +128,7 @@ const OVERDUE_DAYS = 3
 function pad(n: number) {
   return String(n).padStart(2, '0')
 }
-function pendingIndex(item: any) {
+function pendingIndex(item: ServiceApplication) {
   return pendingApprovals.value.indexOf(item) + 1
 }
 function statusText(status: string) {
@@ -137,7 +138,7 @@ function statusText(status: string) {
   return m[status] || status || '未知'
 }
 /** 超时提醒：处理中的卷宗停留超过阈值天数标记为滞压 */
-function overdueDays(item: any): number {
+function overdueDays(item: ServiceApplication): number {
   if (item.status !== 'PENDING') return 0
   const start = item.submittedAt || item.createdAt
   if (!start) return 0
@@ -148,7 +149,7 @@ function overdueDays(item: any): number {
 async function loadCount() {
   try {
     const res = await getPendingApprovalsCount()
-    pendingCount.value = (res.data as any) ?? 0
+    pendingCount.value = res.data ?? 0
   } catch {}
 }
 
@@ -156,7 +157,7 @@ async function loadPending() {
   loading.value = true
   try {
     const res = await getPendingApprovals({ page: 1, pageSize: 20 })
-    pendingApprovals.value = (res.data as any)?.records || (res.data as any) || []
+    pendingApprovals.value = res.data?.records || []
   } catch {} finally { loading.value = false }
 }
 
@@ -164,7 +165,7 @@ async function loadProcessed() {
   loading.value = true
   try {
     const res = await getProcessedApprovals({ page: 1, pageSize: 20 })
-    processedApprovals.value = (res.data as any)?.records || (res.data as any) || []
+    processedApprovals.value = res.data?.records || []
   } catch {} finally { loading.value = false }
 }
 
@@ -172,7 +173,7 @@ async function loadMine() {
   loading.value = true
   try {
     const res = await getMyApplications()
-    myApprovals.value = (res.data as any) || []
+    myApprovals.value = res.data?.records || []
   } catch {} finally { loading.value = false }
 }
 
@@ -186,7 +187,7 @@ loadCount()
 
 async function handleApprove(id: number) {
   try {
-    await approveTask(id, { action: 'APPROVE', comment: '' })
+    await approveTask(id, { comment: '' })
     ElMessage.success('已通过')
     pendingApprovals.value = pendingApprovals.value.filter(a => a.id !== id)
   } catch {}
@@ -194,7 +195,7 @@ async function handleApprove(id: number) {
 
 async function handleReject(id: number) {
   try {
-    await rejectTask(id, { action: 'REJECT', comment: '' })
+    await rejectTask(id, { comment: '' })
     ElMessage.success('已驳回')
     pendingApprovals.value = pendingApprovals.value.filter(a => a.id !== id)
   } catch {}

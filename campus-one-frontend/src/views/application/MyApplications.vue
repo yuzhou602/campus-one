@@ -14,7 +14,7 @@
       <div class="px-6 py-4 border-b border-line">
         <el-radio-group v-model="activeTab" @change="fetchData">
           <el-radio-button value="all">全部</el-radio-button>
-          <el-radio-button value="PROCESSING">审批中</el-radio-button>
+          <el-radio-button value="PENDING">审批中</el-radio-button>
           <el-radio-button value="APPROVED">已通过</el-radio-button>
           <el-radio-button value="REJECTED">已驳回</el-radio-button>
           <el-radio-button value="WITHDRAWN">已撤回</el-radio-button>
@@ -55,21 +55,21 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { getMyApplications } from '@/api/application'
-import type { ServiceApplication } from '@/types/application'
+import type { ApprovalStatus, ApplicationQuery, ServiceApplication } from '@/types/application'
 import StatusTag from '@/components/common/StatusTag.vue'
 
 const loading = ref(false)
-const activeTab = ref('all')
+const activeTab = ref<'all' | ApprovalStatus>('all')
 const applications = ref<ServiceApplication[]>([])
 const pagination = reactive({ page: 1, pageSize: 10, total: 0 })
 
 async function fetchData() {
   loading.value = true
   try {
-    const params: any = { page: pagination.page, pageSize: pagination.pageSize }
+    const params: ApplicationQuery = { page: pagination.page, pageSize: pagination.pageSize }
     if (activeTab.value !== 'all') params.status = activeTab.value
     const res = await getMyApplications(params)
-    applications.value = res.data.records
+    applications.value = res.data.records || []
     pagination.total = res.data.total
   } catch {} finally {
     loading.value = false

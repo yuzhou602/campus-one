@@ -5,7 +5,7 @@
         <el-button text @click="$router.back()"><el-icon><ArrowLeft /></el-icon></el-button>
         <div class="flex-1">
           <div class="flex items-center gap-3">
-            <h1 class="text-xl font-semibold text-ink-900">{{ application.title || '申请详情' }}</h1>
+            <h1 class="text-xl font-semibold text-ink-900">{{ application.serviceName || '申请详情' }}</h1>
             <span v-if="reviewGroup" class="stamp text-[10px]">{{ reviewGroup }} · 负责审批</span>
           </div>
           <p class="text-sm text-ink-500 n-rec mt-1">{{ application.applicationNo || '' }}</p>
@@ -25,18 +25,18 @@
       <div class="lg:col-span-2 sheet p-6">
         <h2 class="arch-sec mb-4">基本信息</h2>
         <div class="grid grid-cols-2 gap-4 text-sm">
+          <div><span class="text-ink-500">服务事项：</span><span class="text-ink-900">{{ application.serviceName || '-' }}</span></div>
           <div><span class="text-ink-500">申请人：</span><span class="text-ink-900">{{ application.applicantName || '-' }}</span></div>
           <div><span class="text-ink-500">学号：</span><span class="text-ink-900">{{ application.studentNo || '-' }}</span></div>
-          <div><span class="text-ink-500">学院：</span><span class="text-ink-900">{{ application.department || '-' }}</span></div>
-          <div><span class="text-ink-500">班级：</span><span class="text-ink-900">{{ application.className || '-' }}</span></div>
-          <div><span class="text-ink-500">请假类型：</span><span class="text-ink-900">{{ application.leaveType || '-' }}</span></div>
-          <div><span class="text-ink-500">开始时间：</span><span class="text-ink-900">{{ application.startTime || '-' }}</span></div>
-          <div><span class="text-ink-500">结束时间：</span><span class="text-ink-900">{{ application.endTime || '-' }}</span></div>
-          <div><span class="text-ink-500">联系电话：</span><span class="text-ink-900">{{ application.phone || '-' }}</span></div>
+          <div><span class="text-ink-500">提交时间：</span><span class="text-ink-900">{{ formatTime(application.submittedAt) || '-' }}</span></div>
+          <div v-if="formData.leaveType"><span class="text-ink-500">请假类型：</span><span class="text-ink-900">{{ leaveTypeText }}</span></div>
+          <div v-if="formData.startTime"><span class="text-ink-500">开始时间：</span><span class="text-ink-900">{{ formatDateTime(formData.startTime) }}</span></div>
+          <div v-if="formData.endTime"><span class="text-ink-500">结束时间：</span><span class="text-ink-900">{{ formatDateTime(formData.endTime) }}</span></div>
+          <div><span class="text-ink-500">当前节点：</span><span class="text-ink-900">{{ application.currentNode || '-' }}</span></div>
         </div>
         <div class="mt-4">
           <span class="text-ink-500 text-sm">请假原因：</span>
-          <p class="text-sm text-ink-900 mt-1">{{ application.reason || '-' }}</p>
+          <p class="text-sm text-ink-900 mt-1 whitespace-pre-wrap">{{ formData.reason || '-' }}</p>
         </div>
       </div>
 
@@ -100,10 +100,11 @@ import { ArrowLeft } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import StatusTag from '@/components/common/StatusTag.vue'
 import { getApplicationById, getApprovalTrail, urgeApplication } from '@/api/application'
+import type { ApprovalRecord, ApplicationFormData, ServiceApplication } from '@/types/application'
 
 const route = useRoute()
-const application = ref<any>({})
-const trail = ref<any[]>([])
+const application = ref<ServiceApplication>({} as ServiceApplication)
+const trail = ref<ApprovalRecord[]>([])
 const loading = ref(false)
 const urging = ref(false)
 
@@ -112,6 +113,11 @@ function formatTime(t?: string) {
   const d = new Date(t)
   const p = (n: number) => String(n).padStart(2, '0')
   return `${p(d.getMonth() + 1)}月${p(d.getDate())}日 ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+function formatDateTime(value?: string) {
+  if (!value) return '-'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('zh-CN', { hour12: false })
 }
 function trailActionText(action?: string) {
   const m: Record<string, string> = {
@@ -126,8 +132,8 @@ async function handleUrge() {
     await urgeApplication(application.value.id)
     application.value.urgeCount = (application.value.urgeCount || 0) + 1
     ElMessage.success('已催促当前审批人')
-  } catch (e: any) {
-    ElMessage.error(e.message || '催办失败')
+  } catch (error: unknown) {
+    ElMessage.error(error instanceof Error ? error.message : '催办失败')
   } finally { urging.value = false }
 }
 
@@ -137,6 +143,19 @@ const reviewGroup = computed(() => {
   if (n.includes('教师')) return '教师'
   if (n.includes('职工')) return '职工'
   return ''
+})
+
+const formData = computed<ApplicationFormData>(() => {
+  try {
+    return JSON.parse(application.value.formDataJson || '{}') as ApplicationFormData
+  } catch {
+    return {}
+  }
+})
+
+const leaveTypeText = computed(() => {
+  const labels: Record<string, string> = { sick: '病假', personal: '事假', official: '公假', other: '其他' }
+  return labels[formData.value.leaveType || ''] || formData.value.leaveType || '-'
 })
 
 /** 审批进度：随申请状态与负责群体真实推进 */
@@ -167,7 +186,7 @@ onMounted(async () => {
   } catch {} finally { loading.value = false }
   try {
     const t = await getApprovalTrail(id)
-    trail.value = (t.data as any) || []
+    trail.value = t.data || []
   } catch {}
 })
 </script>

@@ -10,7 +10,8 @@ import java.util.List;
 
 public interface ApprovalService {
     ServiceApplication submitApplication(ApplicationDTO dto, Long userId);
-    List<ServiceApplication> getMyApprovals(Long userId, String status);
+    IPage<ServiceApplication> getMyApprovals(Long userId, int page, int pageSize, String status);
+    ServiceApplication getApplication(Long applicationId);
     IPage<ServiceApplication> getPendingApprovals(Long userId, int page, int pageSize);
     IPage<ServiceApplication> getProcessedApprovals(Long userId, int page, int pageSize);
     long countPendingApprovals(Long userId);

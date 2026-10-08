@@ -44,8 +44,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { getServices } from '@/api/application'
+import type { ServiceCatalogItem } from '@/types/application'
 
-const services = ref<any[]>([])
+const services = ref<ServiceCatalogItem[]>([])
 const loading = ref(false)
 
 function pad(n: number) {

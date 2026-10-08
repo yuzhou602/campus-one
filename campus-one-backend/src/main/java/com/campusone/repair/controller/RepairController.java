@@ -3,6 +3,7 @@ package com.campusone.repair.controller;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.campusone.common.response.ApiResponse;
 import com.campusone.common.response.PageResult;
+import com.campusone.common.util.BusinessNumberGenerator;
 import com.campusone.repair.dto.RepairDTO;
 import com.campusone.repair.entity.RepairOrder;
 import com.campusone.repair.service.RepairService;
@@ -37,7 +38,7 @@ public class RepairController {
         order.setAvailableTime(dto.getAvailableTime());
         order.setPriority("MEDIUM");
         order.setStatus("SUBMITTED");
-        order.setRepairNo("RP" + System.currentTimeMillis() + java.util.UUID.randomUUID().toString().substring(0, 4).toUpperCase());
+        order.setRepairNo(BusinessNumberGenerator.generate("RP"));
         return ApiResponse.success(repairService.createRepair(order));
     }
 

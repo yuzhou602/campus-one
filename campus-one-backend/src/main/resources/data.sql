@@ -76,9 +76,12 @@ INSERT IGNORE INTO campus_resource (id, resource_code, resource_name, resource_t
 
 -- Services
 INSERT IGNORE INTO campus_service (id, name, description, category, target_roles, duration, approval_flow) VALUES
-(1, '请假申请', '因病、因事需要请假的学生可在此提交申请', 'leave', 'STUDENT', '1个工作日', '班主任→辅导员'),
-(2, '学生证明申请', '在读证明、成绩证明、学籍证明等', 'certificate', 'STUDENT', '2个工作日', '辅导员审批'),
-(3, '场地特殊使用申请', '教室、实验室等场地的特殊使用申请', 'venue', 'STUDENT,TEACHER', '3个工作日', '管理员审批');
+(1, '请假申请', '课程、实习与日常请假在线登记', 'leave', 'STUDENT', '2个工作日', '教师→管理员'),
+(2, '学生证明申请', '在读证明、成绩证明等材料申请', 'certificate', 'STUDENT', '1个工作日', '职工→管理员'),
+(3, '场地特殊使用', '常规预约时段以外的场地使用申请', 'venue', 'STUDENT,TEACHER', '3个工作日', '职工→管理员'),
+(4, '活动场地申请', '社团和班级活动场地备案', 'activity_venue', 'STUDENT,TEACHER', '3个工作日', '职工→管理员'),
+(5, '物品借用申请', '公共器材和活动物资借用', 'asset', 'STUDENT,TEACHER', '1个工作日', '职工→管理员'),
+(6, '宿舍事务申请', '调宿、晚归等宿舍事务登记', 'dormitory', 'STUDENT', '2个工作日', '职工→管理员');
 
 -- Activities
 INSERT IGNORE INTO campus_activity (id, activity_code, title, description, category, location, start_time, end_time, registration_deadline, capacity, registered_count, organizer, creator_id) VALUES

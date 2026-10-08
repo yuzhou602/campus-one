@@ -45,13 +45,13 @@
             :auto-upload="!isDemoMode"
             multiple
             :limit="5"
-            accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
+            accept=".jpg,.jpeg,.png,.webp,.pdf"
           >
             <el-button type="primary" plain>
               <el-icon><Upload /></el-icon>上传附件
             </el-button>
             <template #tip>
-              <div class="text-xs text-ink-500 mt-1">{{ isDemoMode ? '演示模式仅记录文件名，不会上传文件' : '支持 jpg/png/pdf/doc 格式，最多5个文件' }}</div>
+              <div class="text-xs text-ink-500 mt-1">{{ isDemoMode ? '演示模式仅记录文件名，不会上传文件' : '支持 JPG、PNG、WebP、PDF，最多 5 个文件，每个不超过 10MB' }}</div>
             </template>
           </el-upload>
         </el-form-item>
@@ -68,22 +68,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { ElMessage, type FormInstance, type FormRules, type UploadUserFile } from 'element-plus'
 import { ArrowLeft, Upload } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
-import { createApplication } from '@/api/application'
+import { createApplication, getServices } from '@/api/application'
+import type { ServiceCatalogItem } from '@/types/application'
 import { isDemoMode } from '@/demo'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 const serviceId = computed(() => route.params.serviceId as string)
-const serviceName = computed(() => {
-  const map: Record<string, string> = { '1': '请假申请', '2': '学生证明申请', '3': '场地特殊使用申请', '4': '活动场地申请', '5': '物品借用申请', '6': '宿舍事务申请' }
-  return map[serviceId.value] || '事务申请'
-})
+const service = ref<ServiceCatalogItem>()
+const serviceName = computed(() => service.value?.name || '事务申请')
 
 const formRef = ref<FormInstance>()
 const submitting = ref(false)
@@ -93,7 +92,7 @@ const form = reactive({
   startTime: '',
   endTime: '',
   reason: '',
-  attachments: [] as any[],
+  attachments: [] as UploadUserFile[],
 })
 
 const rules: FormRules = {
@@ -108,6 +107,10 @@ const uploadHeaders = computed(() => ({
 }))
 
 async function handleSubmit() {
+  if (!service.value) {
+    ElMessage.error('服务事项不存在或已停用')
+    return
+  }
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
 
@@ -127,4 +130,14 @@ async function handleSubmit() {
     submitting.value = false
   }
 }
+
+onMounted(async () => {
+  try {
+    const result = await getServices()
+    service.value = (result.data || []).find(item => item.id === Number(serviceId.value))
+    if (!service.value) ElMessage.error('服务事项不存在或已停用')
+  } catch {
+    ElMessage.error('服务目录加载失败')
+  }
+})
 </script>

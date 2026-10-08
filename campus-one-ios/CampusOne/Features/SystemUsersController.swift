@@ -1,6 +1,6 @@
 import UIKit
 
-/// 用户管理（对应 Vue SystemUsers）。关键词检索 + 分页，角色印章（TEACHER=教师 / COUNSELOR=职工）。
+/// 用户管理（对应 Vue SystemUsers）。关键词检索 + 分页，角色印章（TEACHER=教师 / COUNSELOR=辅导员）。
 final class SystemUsersController: UITableViewController {
 
     private var users: [UserItem] = []
@@ -219,7 +219,7 @@ private final class SystemUserCell: UITableViewCell {
     private func roleText(_ role: String) -> String {
         let m: [String: String] = [
             "SUPER_ADMIN": "超级管理员", "ADMIN": "管理员",
-            "TEACHER": "教师", "COUNSELOR": "职工", "STUDENT": "学生",
+            "TEACHER": "教师", "COUNSELOR": "辅导员", "SERVICE": "服务人员", "STUDENT": "学生",
         ]
         return m[role] ?? (role.isEmpty ? "未知" : role)
     }
