@@ -88,6 +88,7 @@ CREATE TABLE IF NOT EXISTS user_notification (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uk_notif_user (notification_id, user_id),
     INDEX idx_user_read (user_id, is_read),
+    INDEX idx_user_created (user_id, created_at, id),
     INDEX idx_notification (notification_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户通知阅读记录';
 

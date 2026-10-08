@@ -18,5 +18,7 @@ public class NoticeDTO {
     private String targetType;
     private Long targetId;
     private String priority;
+    @Pattern(regexp = "(?i)SCHOOL|COLLEGE|CLASS|SYSTEM|APPROVAL|RESERVATION|REPAIR|ACTIVITY",
+            message = "通知分类不受支持")
     private String category;
 }

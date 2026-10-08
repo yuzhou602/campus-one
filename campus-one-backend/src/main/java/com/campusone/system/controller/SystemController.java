@@ -19,7 +19,7 @@ public class SystemController {
     @GetMapping("/info")
     public ApiResponse<Map<String, Object>> systemInfo() {
         Map<String, Object> info = new HashMap<>();
-        info.put("version", "1.2.0");
+        info.put("version", "1.2.1");
         info.put("name", "CampusOne 智慧校园综合服务平台");
         info.put("javaVersion", System.getProperty("java.version"));
         info.put("osName", System.getProperty("os.name"));

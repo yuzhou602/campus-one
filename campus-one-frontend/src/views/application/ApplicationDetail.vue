@@ -101,6 +101,7 @@ import { ElMessage } from 'element-plus'
 import StatusTag from '@/components/common/StatusTag.vue'
 import { getApplicationById, getApprovalTrail, urgeApplication } from '@/api/application'
 import type { ApprovalRecord, ApplicationFormData, ServiceApplication } from '@/types/application'
+import { parseApplicationFormData } from '@/utils/application'
 
 const route = useRoute()
 const application = ref<ServiceApplication>({} as ServiceApplication)
@@ -146,11 +147,7 @@ const reviewGroup = computed(() => {
 })
 
 const formData = computed<ApplicationFormData>(() => {
-  try {
-    return JSON.parse(application.value.formDataJson || '{}') as ApplicationFormData
-  } catch {
-    return {}
-  }
+  return parseApplicationFormData(application.value.formDataJson)
 })
 
 const leaveTypeText = computed(() => {

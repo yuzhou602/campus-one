@@ -279,20 +279,20 @@ export const demoAdapter: AxiosAdapter = async config => {
     result = activities.find(item => item.id === detailId(path)) || activities[0]
   } else if (path === '/notices') {
     result = page(notices, params)
-  } else if (path === '/notifications/unread-count') {
+  } else if (path === '/notices/unread-count' || path === '/notifications/unread-count') {
     result = notices.filter(item => !item.isRead).length
   } else if (path === '/notifications/my') {
     result = notices
-  } else if (path === '/notifications/read-all') {
+  } else if (path === '/notices/read-all' || path === '/notifications/read-all') {
     notices.forEach(item => { item.isRead = true; item.unread = false })
     result = true
-  } else if (/^\/notifications\/\d+\/read$/.test(path)) {
+  } else if (/^\/(notices|notifications)\/\d+\/read$/.test(path)) {
     const item = notices.find(entry => entry.id === detailId(path))
     if (item) { item.isRead = true; item.unread = false }
     result = true
-  } else if (/^\/notifications\/\d+$/.test(path) && method === 'delete') {
+  } else if (/^\/(notices|notifications)\/\d+$/.test(path) && method === 'delete') {
     result = true
-  } else if (/^\/notifications\/\d+$/.test(path)) {
+  } else if (/^\/(notices|notifications)\/\d+$/.test(path)) {
     result = notices.find(item => item.id === detailId(path)) || notices[0]
   } else if (path === '/dashboard/student') {
     result = { recentActivities: [{ id: 1, name: '软件工程', startTime: '08:00', endTime: '09:40', location: '信息楼 I205', teacher: '陈老师', week: 4 }, { id: 2, name: '大学英语', startTime: '14:00', endTime: '15:40', location: '教学楼 A102', teacher: '王老师', week: 4 }], pendingRepairs: 1, upcomingReservations: 2 }
@@ -317,7 +317,7 @@ export const demoAdapter: AxiosAdapter = async config => {
     const filtered = keyword ? users.filter(item => `${item.username}${item.realName}`.toLowerCase().includes(keyword)) : users
     result = page(filtered, params)
   } else if (path === '/system/info') {
-    result = { name: 'CampusOne 在线演示', version: '1.2.0-demo', javaVersion: 'Static Demo', osName: 'GitHub Pages' }
+    result = { name: 'CampusOne 在线演示', version: '1.2.1-demo', javaVersion: 'Static Demo', osName: 'GitHub Pages' }
   } else if (path === '/tasks/my') {
     const user = currentUser()
     result = {

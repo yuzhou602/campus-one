@@ -6,8 +6,8 @@
         <div class="flex-1">
           <h1 class="text-xl font-semibold text-ink-900">{{ notice.title || '通知详情' }}</h1>
           <div class="flex items-center gap-3 mt-2 text-xs text-ink-500">
-            <span>{{ notice.publisher || '' }}</span>
-            <span>{{ notice.publishTime || '' }}</span>
+            <span>{{ notice.publisher || notice.type || '校园通知' }}</span>
+            <span>{{ notice.publishTime || notice.createdAt || '' }}</span>
             <span v-if="notice.important" class="stamp text-[10px]">重要</span>
           </div>
         </div>
@@ -24,10 +24,11 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ArrowLeft } from '@element-plus/icons-vue'
-import { getNoticeById } from '@/api/notice'
+import { getNoticeById, markAsRead } from '@/api/notice'
+import type { NoticeItem } from '@/api/notice'
 
 const route = useRoute()
-const notice = ref<any>({})
+const notice = ref<Partial<NoticeItem>>({})
 const loading = ref(false)
 
 onMounted(async () => {
@@ -37,6 +38,7 @@ onMounted(async () => {
   try {
     const res = await getNoticeById(id)
     notice.value = res.data || {}
+    if (!notice.value.isRead) await markAsRead(id)
   } catch (error) {
     console.error('通知加载失败', error)
   } finally { loading.value = false }

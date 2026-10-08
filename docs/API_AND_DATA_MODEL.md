@@ -134,12 +134,9 @@ Authorization: Bearer <access-token>
 | `GET` | `/notices/unread-count` | 未读数量 |
 | `PUT` | `/notices/{id}/read` | 标记已读 |
 | `PUT` | `/notices/read-all` | 全部标记已读 |
-| `GET` | `/notifications/my` | 查询投递到当前用户的消息列表 |
-| `GET` | `/notifications/{id}` | 查询已投递或公开通知详情 |
-| `GET` | `/notifications/unread-count` | 消息未读数量 |
-| `PUT` | `/notifications/{id}/read` | 消息标记已读 |
-| `PUT` | `/notifications/read-all` | 消息全部已读 |
-| `DELETE` | `/notifications/{id}` | 发布角色删除通知及投递关系 |
+| `DELETE` | `/notices/{id}` | 发布角色删除通知及投递关系 |
+
+`/notifications/**` 是旧 Web/iOS 客户端的兼容入口，内部委托给同一个通知服务。新代码统一使用 `/notices/**`，兼容入口计划在确认旧客户端完成迁移后删除。
 
 ### 工作台、分析、文件和 AI
 

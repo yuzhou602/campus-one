@@ -62,6 +62,8 @@ npm run preview
 
 2. 替换 `.env` 中所有 `replace-with-...` 占位符。`JWT_SECRET` 至少使用 32 字节随机值。
 
+   本地 Compose 默认使用 `SPRING_PROFILES_ACTIVE=dev`，因此开放 Swagger 并输出 SQL。正式环境必须设置为 `prod`。
+
 3. 构建并启动。
 
    ```bash
@@ -119,6 +121,7 @@ cd campus-one-backend
 
 # 前端类型检查与正式构建
 cd ../campus-one-frontend
+npm run test:unit
 npm run build
 
 # 前端演示模式构建
@@ -169,6 +172,7 @@ Reverse Proxy
 - 配置数据库备份、恢复演练和 Flyway 上线流程；
 - 配置集中日志、运行指标、健康检查和告警；
 - 设置反向代理请求体限制、连接超时和安全响应头；
+- 设置 `SPRING_PROFILES_ACTIVE=prod`；该配置会关闭 Swagger 与 SQL 控制台输出；
 - 准备隐私、数据保留、账号停用和审计策略。
 
 ## 8. iOS 构建

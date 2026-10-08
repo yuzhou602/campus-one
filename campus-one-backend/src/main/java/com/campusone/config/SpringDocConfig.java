@@ -14,6 +14,6 @@ public class SpringDocConfig {
         return new OpenAPI().info(new Info()
                 .title("CampusOne 智慧校园综合服务平台 API")
                 .description("基于 Spring Boot 3 + MyBatis-Plus 的智慧校园综合服务平台")
-                .version("1.2.0"));
+                .version("1.2.1"));
     }
 }

@@ -10,7 +10,7 @@ services:
       MYSQL_USER: campusone
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     ports:
-      - "3306:3306"
+      - "127.0.0.1:${MYSQL_PORT:-3306}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./campus-one-backend/src/main/resources/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
@@ -25,7 +25,7 @@ services:
     image: redis:7-alpine
     container_name: campus-one-redis
     ports:
-      - "6379:6379"
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -47,6 +47,7 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
       FILE_UPLOAD_DIR: /app/uploads
       FILE_BASE_URL: ${FILE_BASE_URL:-http://localhost:8080/api/v1/files}
     volumes:

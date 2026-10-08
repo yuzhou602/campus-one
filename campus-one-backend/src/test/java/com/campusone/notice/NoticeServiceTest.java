@@ -40,10 +40,10 @@ class NoticeServiceTest {
     private UserNotificationMapper userNotificationMapper;
 
     @Mock
-    private UserMapper userMapper;
+    private NotificationDistributionService notificationDistributionService;
 
     @Mock
-    private NotificationDistributionService notificationDistributionService;
+    private UserMapper userMapper;
 
     @InjectMocks
     private NoticeServiceImpl noticeService;
@@ -55,7 +55,7 @@ class NoticeServiceTest {
     @BeforeEach
     void setUpBaseMapper() {
         ReflectionTestUtils.setField(noticeService, "baseMapper", notificationMapper);
-        distributionService = new NotificationDistributionService(userMapper, userNotificationMapper);
+        distributionService = new NotificationDistributionService(userNotificationMapper);
     }
 
     @BeforeEach
@@ -82,11 +82,24 @@ class NoticeServiceTest {
     }
 
     @Test
+    @DisplayName("创建指定用户通知 - 拒绝不存在或停用账号")
+    void testCreateRejectsUnavailableTargetUser() {
+        testNotification.setTargetType("USER");
+        testNotification.setTargetId(99L);
+        when(userMapper.selectById(99L)).thenReturn(null);
+
+        assertThrows(BusinessException.class, () -> noticeService.create(testNotification));
+
+        verify(notificationMapper, never()).insert(any(Notification.class));
+        verify(notificationDistributionService, never()).distributeAsync(any(), any(), any());
+    }
+
+    @Test
     @DisplayName("获取我的通知 - ALL类型")
     void testGetMyNotices_All() {
         Page<Notification> page = new Page<>(1, 10);
         page.setRecords(List.of(testNotification));
-        when(notificationMapper.selectPage(any(), any(LambdaQueryWrapper.class))).thenReturn(page);
+        when(notificationMapper.selectUserNotificationPage(any(Page.class), eq(1L), eq("all"))).thenReturn(page);
 
         IPage<Notification> result = noticeService.getMyNotices(1L, 1, 10, "all");
 
@@ -98,12 +111,12 @@ class NoticeServiceTest {
     @DisplayName("获取我的通知 - 按类型筛选")
     void testGetMyNotices_ByType() {
         Page<Notification> page = new Page<>(1, 10);
-        when(notificationMapper.selectPage(any(), any(LambdaQueryWrapper.class))).thenReturn(page);
+        when(notificationMapper.selectUserNotificationPage(any(Page.class), eq(1L), eq("SYSTEM"))).thenReturn(page);
 
         IPage<Notification> result = noticeService.getMyNotices(1L, 1, 10, "SYSTEM");
 
         assertNotNull(result);
-        verify(notificationMapper).selectPage(any(), any(LambdaQueryWrapper.class));
+        verify(notificationMapper).selectUserNotificationPage(any(Page.class), eq(1L), eq("SYSTEM"));
     }
 
     @Test
@@ -131,6 +144,69 @@ class NoticeServiceTest {
         when(userNotificationMapper.markAsRead(999L, 1L)).thenReturn(0);
 
         assertDoesNotThrow(() -> noticeService.markAsRead(999L, 1L));
+    }
+
+    @Test
+    @DisplayName("查看通知 - 必须存在用户投递关系")
+    void testGetVisibleNotice() {
+        UserNotification relation = new UserNotification();
+        relation.setIsRead(true);
+        when(userNotificationMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(relation);
+        when(notificationMapper.selectById(1L)).thenReturn(testNotification);
+
+        Notification result = noticeService.getVisibleNotice(1L, 7L);
+
+        assertSame(testNotification, result);
+        assertEquals(1, result.getIsRead());
+    }
+
+    @Test
+    @DisplayName("查看通知 - 无投递关系时拒绝")
+    void testGetVisibleNoticeForbidden() {
+        when(userNotificationMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
+
+        BusinessException error = assertThrows(BusinessException.class,
+                () -> noticeService.getVisibleNotice(1L, 7L));
+
+        assertEquals(403, error.getCode());
+        verify(notificationMapper, never()).selectById(any());
+    }
+
+    @Test
+    @DisplayName("删除通知 - 先删除用户关系再删除通知")
+    void testDeleteNotice() {
+        when(notificationMapper.selectById(1L)).thenReturn(testNotification);
+        when(userNotificationMapper.delete(any(LambdaQueryWrapper.class))).thenReturn(2);
+        when(notificationMapper.deleteById(1L)).thenReturn(1);
+
+        try (MockedStatic<UserContext> userContext = mockStatic(UserContext.class)) {
+            userContext.when(UserContext::getCurrentUserRole).thenReturn("SUPER_ADMIN");
+            userContext.when(UserContext::getCurrentUserId).thenReturn(9L);
+            noticeService.deleteNotice(1L);
+        }
+
+        var order = inOrder(userNotificationMapper, notificationMapper);
+        order.verify(userNotificationMapper).delete(any(LambdaQueryWrapper.class));
+        order.verify(notificationMapper).deleteById(1L);
+    }
+
+    @Test
+    @DisplayName("删除通知 - 辅导员只能删除自己发布的通知")
+    void testDeleteNoticeRejectsOtherPublisher() {
+        testNotification.setSenderId(8L);
+        when(notificationMapper.selectById(1L)).thenReturn(testNotification);
+
+        try (MockedStatic<UserContext> userContext = mockStatic(UserContext.class)) {
+            userContext.when(UserContext::getCurrentUserRole).thenReturn("COUNSELOR");
+            userContext.when(UserContext::getCurrentUserId).thenReturn(9L);
+
+            BusinessException error = assertThrows(BusinessException.class,
+                    () -> noticeService.deleteNotice(1L));
+            assertEquals(403, error.getCode());
+        }
+
+        verify(userNotificationMapper, never()).delete(any(LambdaQueryWrapper.class));
+        verify(notificationMapper, never()).deleteById(any(Long.class));
     }
 
     @Test
@@ -190,16 +266,12 @@ class NoticeServiceTest {
     @Test
     @DisplayName("异步分发 - ALL类型通知")
     void testDistributeAsync_All() {
-        User user1 = new User();
-        user1.setId(1L);
-        User user2 = new User();
-        user2.setId(2L);
-        when(userMapper.selectList(null)).thenReturn(List.of(user1, user2));
-        when(userNotificationMapper.insert(any(UserNotification.class))).thenReturn(1);
+        when(userNotificationMapper.distributeToAllActiveUsers(1L)).thenReturn(2);
 
         distributionService.distributeAsync(1L, "ALL", null);
 
-        verify(userNotificationMapper, times(2)).insert(any(UserNotification.class));
+        verify(userNotificationMapper).distributeToAllActiveUsers(1L);
+        verify(userNotificationMapper, never()).insert(any(UserNotification.class));
     }
 
     @Test
@@ -217,5 +289,6 @@ class NoticeServiceTest {
     void testDistributeAsync_UnknownType() {
         assertDoesNotThrow(() -> distributionService.distributeAsync(1L, "UNKNOWN", null));
         verify(userNotificationMapper, never()).insert((UserNotification) any());
+        verify(userNotificationMapper, never()).distributeToAllActiveUsers(any());
     }
 }

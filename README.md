@@ -2,7 +2,7 @@
 
 CampusOne 是一个智慧校园综合服务项目，包含 Vue 3 Web 前端、Spring Boot 后端和 iOS 客户端。当前仓库同时提供一个可直接部署到 GitHub Pages 的纯前端在线演示版，方便其他人无需安装数据库或后端即可浏览和操作界面。
 
-当前版本：**v1.2.0**。版本变化见 [CHANGELOG.md](CHANGELOG.md)。
+当前版本：**v1.2.1**。版本变化见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 系统设计
 
@@ -72,7 +72,7 @@ npm run preview
 | --- | --- |
 | Web 前端 | Vue 3、TypeScript、Vite、Pinia、Element Plus、Tailwind CSS |
 | 后端 | Java 21、Spring Boot 3、Spring Security、MyBatis-Plus、MySQL、Redis |
-| iOS | Swift / SwiftUI |
+| iOS | Swift / UIKit |
 | 本地编排 | Docker Compose |
 
 ## 完整系统本地运行
@@ -92,7 +92,7 @@ docker compose up --build
 
 - Web：`http://localhost:3000`
 - 后端 API：`http://localhost:8080/api/v1`
-- Swagger：`http://localhost:8080/swagger-ui.html`
+- Swagger（`dev` 配置）：`http://localhost:8080/swagger-ui.html`
 
 不要把 `.env`、数据库文件、上传文件或任何真实密钥提交到 GitHub。公开部署完整后端前，还应使用托管 MySQL/Redis、HTTPS、持久化文件存储，并关闭公网数据库端口与生产环境 Swagger。
 
@@ -124,6 +124,7 @@ Windows PowerShell 可使用 `./mvnw.cmd spring-boot:run`。
 ```bash
 # 前端正式构建
 cd campus-one-frontend
+npm run test:unit
 npm run build
 
 # Pages 演示构建

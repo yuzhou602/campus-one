@@ -47,7 +47,7 @@ mybatis-plus:
       logic-not-delete-value: 0
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
 
 springdoc:
   api-docs:
@@ -61,6 +61,10 @@ jwt:
 
 cors:
   allowed-origins: ${CORS_ORIGINS:http://localhost:3000}
+
+app:
+  security:
+    public-api-docs: ${PUBLIC_API_DOCS:false}
 
 logging:
   level:
